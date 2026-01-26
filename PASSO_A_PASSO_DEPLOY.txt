@@ -1,0 +1,95 @@
+================================================================================
+GUIA DE DEPLOY: SISTEMA DCVB HANDIT (FRONTEND + BACKEND + MYSQL)
+================================================================================
+
+Este guia descreve os passos para instalar a aplicacao em uma VPS (Ubuntu/Debian).
+
+--------------------------------------------------------------------------------
+1. PREPARACAO DA VPS
+--------------------------------------------------------------------------------
+Acesse sua VPS via SSH e instale o ambiente basico:
+
+sudo apt update && sudo apt upgrade -y
+
+# Instalar Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs mysql-server nginx
+
+# Instalar PM2 para manter a API online
+sudo npm install -g pm2
+
+--------------------------------------------------------------------------------
+2. CONFIGURACAO DO BANCO DE DADOS (MYSQL)
+--------------------------------------------------------------------------------
+Acesse o console do MySQL:
+sudo mysql
+
+Dentro do MySQL, execute (ajuste a senha):
+CREATE DATABASE dcvb_db;
+CREATE USER 'dcvb_user'@'localhost' IDENTIFIED BY 'SUA_SENHA_SEGURA';
+GRANT ALL PRIVILEGES ON dcvb_db.* TO 'dcvb_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+
+# IMPORTANTE: Importe o arquivo de schema para criar as tabelas:
+mysql -u dcvb_user -p dcvb_db < db/mysql_schema.sql
+
+--------------------------------------------------------------------------------
+3. DEPLOY DO BACKEND (API)
+--------------------------------------------------------------------------------
+1. Copie a pasta 'api/' para '/var/www/dcvb/api' na VPS.
+2. Acesse a pasta: cd /var/www/dcvb/api
+3. Instale as dependencias: npm install
+4. Configure as variaveis de ambiente:
+   cp .env.example .env
+   nano .env (Coloque a senha do banco que voce configurou no passo 2)
+5. Inicie a API:
+   pm2 start src/server.js --name dcvb-backend
+
+--------------------------------------------------------------------------------
+4. DEPLOY DO FRONTEND (WEB)
+--------------------------------------------------------------------------------
+1. A pasta 'dist/' contem os arquivos estaticos compilados.
+2. Mova o conteudo da pasta 'dist/' para '/var/www/dcvb/web' na VPS.
+
+--------------------------------------------------------------------------------
+5. CONFIGURACAO DO SERVIDOR WEB (NGINX)
+--------------------------------------------------------------------------------
+Crie o arquivo de configuracao do site:
+sudo nano /etc/nginx/sites-available/dcvb
+
+Cole o conteudo abaixo (ajuste 'seu_dominio_ou_ip'):
+
+server {
+    listen 80;
+    server_name seu_dominio_ou_ip;
+
+    # Site (Frontend)
+    location / {
+        root /var/www/dcvb/web;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API (Backend Proxy)
+    location /api/ {
+        proxy_pass http://localhost:3000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+Ative e reinicie o servico:
+sudo ln -s /etc/nginx/sites-available/dcvb /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+--------------------------------------------------------------------------------
+CHECKLIST FINAL:
+- O MySQL esta ligado?
+- O PM2 mostra 'dcvb-backend' como 'online'?
+- O Nginx esta apontando para os caminhos /var/www/dcvb/web e api?
+================================================================================

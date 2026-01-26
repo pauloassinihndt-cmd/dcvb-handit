@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Color Palette - Handit Rebrand (Light Mode Base) */
+  --bg-primary: #ffffff;
+  /* White */
+  --bg-secondary: #f8fafc;
+  /* Slate 50 (Very light gray for cards) */
+  --bg-tertiary: #e2e8f0;
+  /* Slate 200 (Borders/Dividers) */
+
+  --text-primary: #0f172a;
+  /* Slate 900 (Black-ish) */
+  --text-secondary: #64748b;
+  /* Slate 500 */
+
+  --primary: #00A674;
+  /* Handit Green */
+  --primary-hover: #008c62;
+  /* Darker green */
+
+  /* Text on primary/green background should be dark */
+  --text-on-primary: #1B1B1D;
+
+  --accent-success: #00A674;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+
+  --border-color: #e2e8f0;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Muli fallback */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+  font-weight: 700;
+  /* Bolder headings like Handit */
+}
+
+a {
+  color: var(--text-primary);
+  /* Links are usually dark unless buttons */
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
