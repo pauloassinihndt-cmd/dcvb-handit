@@ -43,7 +43,7 @@ const AdminLayout = () => {
                     <NavItem to="/admin/feedback" label="Feedback das Áreas" icon={MessageSquare} />
                     <NavItem to="/admin/pontuacao" label="Pontuação" icon={Settings} />
                     <NavItem to="/admin/importacao" label="Importação" icon={Upload} />
-                    <NavItem to="/admin/seguranca" label="Segurança" icon={Lock} />
+                    <NavItem to="/admin/seguranca" label="Alterar Senha" icon={Lock} />
                     <NavItem to="/admin/historico" label="Histórico" icon={History} />
 
                     <button
@@ -77,7 +77,7 @@ const AdminLayout = () => {
                         <NavItem to="/admin/questoes" label="Manutenção de Perguntas" icon={Settings} />
                         <NavItem to="/admin/pontuacao" label="Pontuação" icon={Settings} />
                         <NavItem to="/admin/importacao" label="Importação" icon={Upload} />
-                        <NavItem to="/admin/seguranca" label="Segurança" icon={Lock} />
+                        <NavItem to="/admin/seguranca" label="Alterar Senha" icon={Lock} />
                         <NavItem to="/admin/historico" label="Histórico de Diagnósticos" icon={History} />
                         <div className="h-px bg-border-color my-4"></div>
                         <Link to="/" className="flex items-center gap-3 px-4 py-3 text-text-secondary hover:text-accent-danger transition-colors">

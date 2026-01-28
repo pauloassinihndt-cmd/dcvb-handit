@@ -140,10 +140,10 @@ async function seed() {
             }
         }
 
-        // 7. Criar usuário administrador padrão
+        // 7. Criar usuário administrador padrão (Senha: admin123)
         await connection.execute(
-            'INSERT IGNORE INTO users (id, username, password) VALUES (?, ?, ?)',
-            [uuidv4(), 'admin', 'admin123']
+            'INSERT IGNORE INTO users (username, password_hash, role) VALUES (?, ?, ?)',
+            ['admin', 'admin123', 'admin']
         );
 
         await connection.commit();
