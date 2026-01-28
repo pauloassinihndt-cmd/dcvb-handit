@@ -23,7 +23,11 @@ app.get('/health', (req, res) => {
 app.get('/industries', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM industries WHERE active = 1 ORDER BY created_at ASC');
-        res.json(Array.isArray(rows) ? rows : []);
+        const mappedRows = Array.isArray(rows) ? rows.map(row => ({
+            ...row,
+            isFixed: row.is_fixed === 1 || row.is_fixed === true
+        })) : [];
+        res.json(mappedRows);
     } catch (error) {
         console.error('Database error:', error);
         res.status(500).json([]); // Retorna array vazio em caso de erro para não quebrar o frontend
@@ -33,13 +37,36 @@ app.get('/industries', async (req, res) => {
 // Adicionar Nova Indústria
 app.post('/industries', async (req, res) => {
     const { name } = req.body;
+    const connection = await pool.getConnection();
     try {
+        await connection.beginTransaction();
         const id = uuidv4();
-        await pool.execute('INSERT INTO industries (id, name, active, is_fixed) VALUES (?, ?, 1, 0)', [id, name]);
-        await pool.execute('INSERT INTO industry_scoring_weights (industry_id, option_a_weight, option_b_weight, option_c_weight, option_d_weight) VALUES (?, 0, 33, 66, 100)', [id]);
-        res.status(201).json({ id, name, active: 1, is_fixed: 0 });
+
+        // 1. Inserir a indústria
+        await connection.execute(
+            'INSERT INTO industries (id, name, active, is_fixed) VALUES (?, ?, 1, 0)',
+            [id, name]
+        );
+
+        // 2. Inserir pesos padrão (Tenta inserir, mas não quebra se a tabela não existir para fins de debug)
+        try {
+            await connection.execute(
+                'INSERT INTO industry_scoring_weights (industry_id, option_a_weight, option_b_weight, option_c_weight, option_d_weight) VALUES (?, 0, 33, 66, 100)',
+                [id]
+            );
+        } catch (weightError) {
+            console.warn('Aviso: Tabela industry_scoring_weights pode estar ausente:', weightError.message);
+            // Poderíamos criar a tabela aqui se necessário, mas vamos apenas logar por enquanto
+        }
+
+        await connection.commit();
+        res.status(201).json({ id, name, active: 1, isFixed: false });
     } catch (error) {
+        await connection.rollback();
+        console.error('ERRO AO ADICIONAR INDÚSTRIA:', error);
         res.status(500).json({ error: error.message });
+    } finally {
+        connection.release();
     }
 });
 

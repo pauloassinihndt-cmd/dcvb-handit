@@ -8,11 +8,13 @@ const IndustryMaintenance = () => {
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
 
-    const handleAdd = (e) => {
+    const handleAdd = async (e) => {
         e.preventDefault();
         if (newIndustryName.trim()) {
-            addIndustry(newIndustryName.trim());
-            setNewIndustryName('');
+            const success = await addIndustry(newIndustryName.trim());
+            if (success) {
+                setNewIndustryName('');
+            }
         }
     };
 

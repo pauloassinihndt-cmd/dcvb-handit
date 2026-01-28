@@ -34,7 +34,14 @@ export const DiagnosisProvider = ({ children }) => {
                 // Buscar Indústrias
                 const indRes = await fetch(`${API_URL}/industries`);
                 const indData = await indRes.json();
-                setIndustries(indData);
+
+                // Garantir mapeamento de is_fixed para isFixed
+                const mappedIndustries = Array.isArray(indData) ? indData.map(ind => ({
+                    ...ind,
+                    isFixed: ind.isFixed !== undefined ? ind.isFixed : (ind.is_fixed === 1 || ind.is_fixed === true)
+                })) : [];
+
+                setIndustries(mappedIndustries);
 
                 // Buscar Histórico
                 const histRes = await fetch(`${API_URL}/history`);
@@ -139,11 +146,23 @@ export const DiagnosisProvider = ({ children }) => {
             });
 
             if (response.ok) {
-                const newIndustry = await response.json();
+                const newIndustryData = await response.json();
+                const newIndustry = {
+                    ...newIndustryData,
+                    isFixed: newIndustryData.isFixed !== undefined ? newIndustryData.isFixed : (newIndustryData.is_fixed === 1 || newIndustryData.is_fixed === true)
+                };
                 setIndustries(prev => [...prev, newIndustry]);
+                return true;
+            } else {
+                const errorData = await response.json();
+                console.error('Erro na API ao adicionar indústria:', errorData);
+                alert(`Erro ao adicionar: ${errorData.error || 'Erro desconhecido'}`);
+                return false;
             }
         } catch (error) {
             console.error('Erro ao adicionar indústria:', error);
+            alert('Erro de conexão ao adicionar indústria.');
+            return false;
         }
     };
 

@@ -49,7 +49,17 @@ CREATE TABLE section_feedbacks (
     FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE
 );
 
--- 6. Scoring Configurations (Limites de pontuação para níveis de maturidade por indústria)
+-- 6. Industry Scoring Weights (Pesos para A, B, C, D por indústria)
+CREATE TABLE industry_scoring_weights (
+    industry_id TEXT PRIMARY KEY,
+    option_a_weight INTEGER DEFAULT 0,
+    option_b_weight INTEGER DEFAULT 33,
+    option_c_weight INTEGER DEFAULT 66,
+    option_d_weight INTEGER DEFAULT 100,
+    FOREIGN KEY (industry_id) REFERENCES industries(id) ON DELETE CASCADE
+);
+
+-- 7. Scoring Configurations (Limites de pontuação para níveis de maturidade por indústria)
 CREATE TABLE scoring_configs (
     industry_id TEXT PRIMARY KEY,
     level_1_limit INTEGER DEFAULT 0,
@@ -59,7 +69,7 @@ CREATE TABLE scoring_configs (
     FOREIGN KEY (industry_id) REFERENCES industries(id) ON DELETE CASCADE
 );
 
--- 7. Diagnoses (Cabeçalho do Diagnóstico realizado / Histórico)
+-- 8. Diagnoses (Cabeçalho do Diagnóstico realizado / Histórico)
 CREATE TABLE diagnoses (
     id TEXT PRIMARY KEY, -- UUID
     industry_id TEXT NOT NULL,
@@ -75,7 +85,7 @@ CREATE TABLE diagnoses (
     FOREIGN KEY (industry_id) REFERENCES industries(id)
 );
 
--- 8. Diagnosis Answers (Respostas individuais de cada diagnóstico)
+-- 9. Diagnosis Answers (Respostas individuais de cada diagnóstico)
 CREATE TABLE diagnosis_answers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     diagnosis_id TEXT NOT NULL,
@@ -87,7 +97,7 @@ CREATE TABLE diagnosis_answers (
     FOREIGN KEY (selected_option_id) REFERENCES question_options(id)
 );
 
--- 9. Diagnosis Section Results (Resumo por área para o relatório)
+-- 10. Diagnosis Section Results (Resumo por área para o relatório)
 CREATE TABLE diagnosis_section_results (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     diagnosis_id TEXT NOT NULL,
