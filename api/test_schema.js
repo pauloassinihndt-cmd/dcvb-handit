@@ -1,33 +1,21 @@
 import mysql from 'mysql2/promise';
 
-const config = { host: 'localhost', user: 'dcvb-user', password: 'H4nd1t#DCVB25', database: 'dcvb-db' };
+const config = { host: 'localhost', user: 'dcvb-user', password: 'H4nd1tDCVB25', database: 'dcvb-db' };
 
 async function checkSchema() {
-    console.log(`--- Checking Schema for ${config.database} ---`);
+    console.log(`--- Checking Connection & Schema with NEW Password ---`);
     try {
         const connection = await mysql.createConnection(config);
-        console.log('SUCCESS: Connection established.');
+        console.log('SUCCESS: Connection established!');
 
-        const tablesToCheck = ['users', 'industries', 'sections', 'questions', 'industry_scoring_weights'];
-
-        for (const table of tablesToCheck) {
-            try {
-                const [rows] = await connection.query(`SHOW TABLES LIKE '${table}'`);
-                if (rows.length > 0) {
-                    console.log(`Table '${table}': EXISTS`);
-                    const [columns] = await connection.query(`DESCRIBE ${table}`);
-                    console.log(`  Columns:`, columns.map(c => `${c.Field} (${c.Type})`).join(', '));
-                } else {
-                    console.error(`Table '${table}': MISSING!`);
-                }
-            } catch (err) {
-                console.error(`Error checking table '${table}':`, err.message);
-            }
-        }
+        const [rows] = await connection.query('SHOW TABLES');
+        console.log('Tables found:', rows.length);
 
         await connection.end();
     } catch (e) {
-        console.error('FAILED TO CONNECT:', e.message);
+        console.error('FAILED TO CONNECT WITH NEW PASSWORD:');
+        console.error('Code:', e.code);
+        console.error('Message:', e.message);
     }
 }
 
