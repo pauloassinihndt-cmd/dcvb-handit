@@ -14,9 +14,10 @@ const Login = () => {
     // Get the page the user was trying to access
     const from = location.state?.from?.pathname || '/admin/questoes';
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (login(password)) {
+        const success = await login(password);
+        if (success) {
             navigate(from, { replace: true });
         } else {
             setError('Senha incorreta. Tente novamente.');

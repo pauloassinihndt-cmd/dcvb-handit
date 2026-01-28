@@ -140,6 +140,12 @@ async function seed() {
             }
         }
 
+        // 7. Criar usuário administrador padrão
+        await connection.execute(
+            'INSERT IGNORE INTO users (id, username, password) VALUES (?, ?, ?)',
+            [uuidv4(), 'admin', 'admin123']
+        );
+
         await connection.commit();
         console.log('Banco de dados populado com sucesso!');
     } catch (error) {

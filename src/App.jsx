@@ -14,6 +14,7 @@ import FeedbackMaintenance from './pages/Admin/FeedbackMaintenance';
 import IndustryMaintenance from './pages/Admin/IndustryMaintenance';
 import ScoringMaintenance from './pages/Admin/ScoringMaintenance';
 import ImportMaintenance from './pages/Admin/ImportMaintenance';
+import SecuritySettings from './pages/Admin/SecuritySettings';
 import ETNReport from './pages/ETNReport';
 
 const router = createBrowserRouter([
@@ -45,6 +46,7 @@ const router = createBrowserRouter([
       { path: "ramos", element: <IndustryMaintenance /> },
       { path: "pontuacao", element: <ScoringMaintenance /> },
       { path: "importacao", element: <ImportMaintenance /> },
+      { path: "seguranca", element: <SecuritySettings /> },
       { path: "historico", element: <History /> },
     ]
   }

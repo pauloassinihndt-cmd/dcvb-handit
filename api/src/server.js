@@ -266,6 +266,43 @@ app.put('/questions/:industryId', async (req, res) => {
     }
 });
 
+// --- ROTAS DE AUTENTICAÇÃO E SEGURANÇA ---
+
+// Login simplificado (verificando no banco)
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const [rows] = await pool.query('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
+        if (rows.length > 0) {
+            res.json({ success: true, user: { id: rows[0].id, username: rows[0].username } });
+        } else {
+            res.status(401).json({ success: false, message: 'Usuário ou senha inválidos' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Alterar Senha
+app.post('/admin/change-password', async (req, res) => {
+    const { username, currentPassword, newPassword } = req.body;
+    try {
+        // Verifica se a senha atual está correta
+        const [rows] = await pool.query('SELECT * FROM users WHERE username = ? AND password = ?', [username, currentPassword]);
+
+        if (rows.length === 0) {
+            return res.status(401).json({ success: false, message: 'Senha atual incorreta' });
+        }
+
+        // Atualiza para a nova senha
+        await pool.execute('UPDATE users SET password = ? WHERE username = ?', [newPassword, username]);
+
+        res.json({ success: true, message: 'Senha alterada com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Backend DCVB rodando em http://localhost:${port}`);
 });

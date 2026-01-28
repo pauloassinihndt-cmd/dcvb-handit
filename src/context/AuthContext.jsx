@@ -4,23 +4,46 @@ import { useNavigate } from 'react-router-dom';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(() => {
+        return localStorage.getItem('is_auth') === 'true';
+    });
+    const [user, setUser] = useState(() => {
+        const saved = localStorage.getItem('auth_user');
+        return saved ? JSON.parse(saved) : null;
+    });
 
-    const login = useCallback((password) => {
-        // Simple hardcoded password for now
-        if (password === 'admin123') {
-            setIsAuthenticated(true);
-            return true;
+    const login = useCallback(async (password) => {
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: 'admin', password })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setIsAuthenticated(true);
+                setUser(data.user);
+                localStorage.setItem('is_auth', 'true');
+                localStorage.setItem('auth_user', JSON.stringify(data.user));
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Erro ao fazer login:', error);
+            return false;
         }
-        return false;
     }, []);
 
     const logout = useCallback(() => {
         setIsAuthenticated(false);
+        setUser(null);
+        localStorage.removeItem('is_auth');
+        localStorage.removeItem('auth_user');
     }, []);
 
     return (
-        <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+        <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

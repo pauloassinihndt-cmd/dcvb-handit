@@ -114,3 +114,10 @@ CREATE INDEX idx_sections_industry ON sections(industry_id);
 CREATE INDEX idx_questions_section ON questions(section_id);
 CREATE INDEX idx_answers_diagnosis ON diagnosis_answers(diagnosis_id);
 CREATE INDEX idx_results_diagnosis ON diagnosis_section_results(diagnosis_id);
+-- 11. Users (Administradores do sistema)
+CREATE TABLE users (
+    id TEXT PRIMARY KEY, -- UUID
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL, -- Senha
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
