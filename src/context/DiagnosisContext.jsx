@@ -219,14 +219,21 @@ export const DiagnosisProvider = ({ children }) => {
             });
 
             if (response.ok) {
-                // Atualizar estado local
                 setAllQuestions(prev => ({
                     ...prev,
                     [currentIndustryId]: updatedSections
                 }));
+                return true;
+            } else {
+                const errorData = await response.json();
+                console.error('Erro ao atualizar perguntas:', errorData);
+                alert(`Erro ao salvar: ${errorData.error || 'Erro desconhecido'}`);
+                return false;
             }
         } catch (error) {
-            console.error('Erro ao atualizar perguntas:', error);
+            console.error('Erro de conexão ao atualizar perguntas:', error);
+            alert('Erro de conexão com o servidor.');
+            return false;
         }
     };
 

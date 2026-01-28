@@ -74,10 +74,12 @@ const QuestionMaintenance = () => {
         setHasChanges(true);
     };
 
-    const saveChanges = () => {
-        updateQuestions(localQuestions);
-        setHasChanges(false);
-        alert('Alterações salvas com sucesso!');
+    const saveChanges = async () => {
+        const success = await updateQuestions(localQuestions);
+        if (success) {
+            setHasChanges(false);
+            alert('Alterações salvas com sucesso!');
+        }
     };
 
 

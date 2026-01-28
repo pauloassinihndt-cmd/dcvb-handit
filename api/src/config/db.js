@@ -3,6 +3,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+console.log('Tentando conexão com o Banco:', {
+    host: process.env.DB_HOST || '127.0.0.1',
+    user: process.env.DB_USER || 'dcvb-user',
+    database: process.env.DB_NAME || 'dcvb-db'
+});
+
 const pool = mysql.createPool({
     host: process.env.DB_HOST || '127.0.0.1',
     user: process.env.DB_USER || 'dcvb-user',

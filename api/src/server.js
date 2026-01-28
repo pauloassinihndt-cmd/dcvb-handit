@@ -62,11 +62,11 @@ app.post('/industries', async (req, res) => {
         await connection.commit();
         res.status(201).json({ id, name, active: 1, isFixed: false });
     } catch (error) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         console.error('ERRO AO ADICIONAR INDÚSTRIA:', error);
         res.status(500).json({ error: error.message });
     } finally {
-        connection.release();
+        if (connection) connection.release();
     }
 });
 
@@ -188,10 +188,11 @@ app.post('/diagnoses', async (req, res) => {
         await connection.commit();
         res.status(201).json({ message: 'Diagnóstico salvo com sucesso', id });
     } catch (error) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
+        console.error('ERRO AO SALVAR DIAGNÓSTICO:', error);
         res.status(500).json({ error: error.message });
     } finally {
-        connection.release();
+        if (connection) connection.release();
     }
 });
 
@@ -258,11 +259,11 @@ app.put('/questions/:industryId', async (req, res) => {
         await connection.commit();
         res.json({ message: 'Estrutura atualizada com sucesso' });
     } catch (error) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         console.error('Erro ao salvar perguntas:', error);
         res.status(500).json({ error: error.message });
     } finally {
-        connection.release();
+        if (connection) connection.release();
     }
 });
 
