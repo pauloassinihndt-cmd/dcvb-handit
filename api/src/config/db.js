@@ -12,7 +12,7 @@ console.log('Tentando conexão com o Banco:', {
 const pool = mysql.createPool({
     host: 'localhost',
     user: 'dcvb-user',
-    password: 'H4nd1t#DCVB25',
+    password: 'H4nd1tDCVB25',
     database: 'dcvb-db',
     waitForConnections: true,
     connectionLimit: 10,
