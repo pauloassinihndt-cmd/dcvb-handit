@@ -43,28 +43,30 @@ app.post('/industries', async (req, res) => {
         const id = uuidv4();
 
         // 1. Inserir a indústria
+        console.log('Tentando inserir indústria:', { id, name });
         await connection.execute(
             'INSERT INTO industries (id, name, active, is_fixed) VALUES (?, ?, 1, 0)',
             [id, name]
         );
 
-        // 2. Inserir pesos padrão (Tenta inserir, mas não quebra se a tabela não existir para fins de debug)
+        // 2. Inserir pesos padrão
         try {
+            console.log('Tentando inserir pesos padrão para:', id);
             await connection.execute(
                 'INSERT INTO industry_scoring_weights (industry_id, option_a_weight, option_b_weight, option_c_weight, option_d_weight) VALUES (?, 0, 33, 66, 100)',
                 [id]
             );
         } catch (weightError) {
-            console.warn('Aviso: Tabela industry_scoring_weights pode estar ausente:', weightError.message);
-            // Poderíamos criar a tabela aqui se necessário, mas vamos apenas logar por enquanto
+            console.warn('Aviso: Falha ao inserir pesos (tabela pode estar ausente):', weightError.message);
         }
 
         await connection.commit();
+        console.log('Indústria adicionada com sucesso!');
         res.status(201).json({ id, name, active: 1, isFixed: false });
     } catch (error) {
         if (connection) await connection.rollback();
-        console.error('ERRO AO ADICIONAR INDÚSTRIA:', error);
-        res.status(500).json({ error: error.message });
+        console.error('ERRO CRÍTICO AO ADICIONAR INDÚSTRIA:', error);
+        res.status(500).json({ error: error.message, stack: error.stack });
     } finally {
         if (connection) connection.release();
     }
