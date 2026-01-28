@@ -20,7 +20,7 @@ app.get('/health', (req, res) => {
 // --- ROTAS DO SISTEMA ---
 
 // Listar Indústrias
-app.get('/api/industries', async (req, res) => {
+app.get('/industries', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM industries WHERE active = 1 ORDER BY created_at ASC');
         res.json(Array.isArray(rows) ? rows : []);
@@ -31,7 +31,7 @@ app.get('/api/industries', async (req, res) => {
 });
 
 // Adicionar Nova Indústria
-app.post('/api/industries', async (req, res) => {
+app.post('/industries', async (req, res) => {
     const { name } = req.body;
     try {
         const id = uuidv4();
@@ -44,7 +44,7 @@ app.post('/api/industries', async (req, res) => {
 });
 
 // Atualizar Nome da Indústria
-app.put('/api/industries/:id', async (req, res) => {
+app.put('/industries/:id', async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
     try {
@@ -56,7 +56,7 @@ app.put('/api/industries/:id', async (req, res) => {
 });
 
 // Alternar Status da Indústria
-app.patch('/api/industries/:id/toggle', async (req, res) => {
+app.patch('/industries/:id/toggle', async (req, res) => {
     const { id } = req.params;
     try {
         await pool.execute('UPDATE industries SET active = 1 - active WHERE id = ?', [id]);
@@ -67,7 +67,7 @@ app.patch('/api/industries/:id/toggle', async (req, res) => {
 });
 
 // Excluir Indústria
-app.delete('/api/industries/:id', async (req, res) => {
+app.delete('/industries/:id', async (req, res) => {
     const { id } = req.params;
     try {
         await pool.execute('DELETE FROM industries WHERE id = ?', [id]);
@@ -78,7 +78,7 @@ app.delete('/api/industries/:id', async (req, res) => {
 });
 
 // Obter Perguntas por Indústria
-app.get('/api/questions/:industryId', async (req, res) => {
+app.get('/questions/:industryId', async (req, res) => {
     const { industryId } = req.params;
     try {
         // Busca as seções
@@ -119,7 +119,7 @@ app.get('/api/questions/:industryId', async (req, res) => {
 });
 
 // Salvar Novo Diagnóstico
-app.post('/api/diagnoses', async (req, res) => {
+app.post('/diagnoses', async (req, res) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
@@ -169,7 +169,7 @@ app.post('/api/diagnoses', async (req, res) => {
 });
 
 // Listar Histórico
-app.get('/api/history', async (req, res) => {
+app.get('/history', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM diagnoses ORDER BY created_at DESC');
         res.json(rows);
@@ -179,7 +179,7 @@ app.get('/api/history', async (req, res) => {
 });
 
 // Atualizar Estrutura de Perguntas de uma Indústria
-app.put('/api/questions/:industryId', async (req, res) => {
+app.put('/questions/:industryId', async (req, res) => {
     const { industryId } = req.params;
     const sections = req.body;
     const connection = await pool.getConnection();
