@@ -202,8 +202,93 @@ app.post('/diagnoses', async (req, res) => {
 app.get('/history', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM diagnoses ORDER BY created_at DESC');
-        res.json(rows);
+
+        // Mapear para o formato que o frontend espera
+        const mappedRows = rows.map(row => ({
+            ...row,
+            id: row.id,
+            company: row.user_company,
+            name: row.user_name,
+            score: row.total_score,
+            date: row.created_at,
+            userInfo: {
+                nome: row.user_name,
+                email: row.user_email,
+                empresa: row.user_company,
+                cargo: row.user_position,
+                etn: row.etn,
+                vendedor: row.vendedor,
+                tempoOrcamento: row.tempo_orcamento,
+                pessoasProcesso: row.pessoas_processo,
+                faturamento: row.faturamento,
+                faixaColaboradores: row.faixa_colaboradores,
+                erp: row.erp
+            }
+        }));
+
+        res.json(mappedRows);
     } catch (error) {
+        console.error('Erro ao buscar histórico:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obter detalhes de um diagnóstico (Respostas e Resultados de Seção)
+app.get('/history/:id/details', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [answers] = await pool.query('SELECT * FROM diagnosis_answers WHERE diagnosis_id = ?', [id]);
+        const [results] = await pool.query('SELECT * FROM diagnosis_section_results WHERE diagnosis_id = ?', [id]);
+
+        // Mapear respostas para o formato { questionId: optionIndex }
+        const mappedAnswers = {};
+        answers.forEach(ans => {
+            mappedAnswers[ans.question_id] = ans.selected_option_index;
+        });
+
+        res.json({
+            answers: mappedAnswers,
+            sectionScores: results.map(r => ({
+                id: r.section_id,
+                title: r.section_title,
+                score: parseFloat(r.score),
+                subject: r.section_title,
+                A: parseFloat(r.score),
+                fullMark: 100,
+                feedback_calculated: r.feedback_text
+            }))
+        });
+    } catch (error) {
+        console.error('Erro ao buscar detalhes do histórico:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Excluir um Diagnóstico do Histórico
+app.delete('/history/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        // O MySQL com ON DELETE CASCADE nas tabelas diagnosis_answers e diagnosis_section_results
+        // cuidará de remover os detalhes automaticamente.
+        await pool.execute('DELETE FROM diagnoses WHERE id = ?', [id]);
+        res.json({ message: 'Diagnóstico removido com sucesso' });
+    } catch (error) {
+        console.error('Erro ao excluir histórico:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Excluir Vários Diagnósticos (Bulk Delete)
+app.post('/history/delete-many', async (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'Lista de IDs inválida' });
+    }
+    try {
+        await pool.query('DELETE FROM diagnoses WHERE id IN (?)', [ids]);
+        res.json({ message: `${ids.length} diagnósticos removidos com sucesso` });
+    } catch (error) {
+        console.error('Erro ao excluir múltiplos históricos:', error);
         res.status(500).json({ error: error.message });
     }
 });

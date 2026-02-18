@@ -265,8 +265,30 @@ export const DiagnosisProvider = ({ children }) => {
             toggleIndustryStatus,
             scoringConfig: { 'default-geral': [0, 33, 66, 100] },
             updateScoringConfig: () => { },
-            deleteFromHistory: () => { },
-            deleteManyFromHistory: () => { }
+            deleteFromHistory: async (id) => {
+                try {
+                    const response = await fetch(`${API_URL}/history/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        setHistory(prev => prev.filter(item => item.id !== id));
+                    }
+                } catch (error) {
+                    console.error('Erro ao excluir do histórico:', error);
+                }
+            },
+            deleteManyFromHistory: async (ids) => {
+                try {
+                    const response = await fetch(`${API_URL}/history/delete-many`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids })
+                    });
+                    if (response.ok) {
+                        setHistory(prev => prev.filter(item => !ids.includes(item.id)));
+                    }
+                } catch (error) {
+                    console.error('Erro ao excluir múltiplos do histórico:', error);
+                }
+            }
         }}>
             {children}
         </DiagnosisContext.Provider>

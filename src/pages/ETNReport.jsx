@@ -14,12 +14,33 @@ const ETNReport = () => {
     const location = useLocation();
 
     // Determine if we are viewing a past result or a fresh one
-    const historyItem = location.state?.historyItem;
+    const historyItemFromLocation = location.state?.historyItem;
+    const [historyDetails, setHistoryDetails] = useState(null);
+    const [loadingDetails, setLoadingDetails] = useState(!!historyItemFromLocation && !historyItemFromLocation.answers);
 
-    // Use data from history if available, otherwise from context
-    const isHistoryView = !!historyItem;
-    const answers = isHistoryView ? (historyItem.answers || {}) : contextAnswers;
-    const userInfo = isHistoryView ? (historyItem.userInfo || historyItem) : contextUserInfo;
+    // Fetch details if viewing history and they're missing
+    useEffect(() => {
+        const fetchDetails = async () => {
+            if (historyItemFromLocation && !historyItemFromLocation.answers) {
+                try {
+                    const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/history/${historyItemFromLocation.id}/details`);
+                    const details = await res.json();
+                    setHistoryDetails(details);
+                } catch (error) {
+                    console.error('Erro ao buscar detalhes do histórico:', error);
+                } finally {
+                    setLoadingDetails(false);
+                }
+            }
+        };
+        fetchDetails();
+    }, [historyItemFromLocation]);
+
+    const isHistoryView = !!historyItemFromLocation;
+    const historyItem = historyDetails ? { ...historyItemFromLocation, ...historyDetails } : historyItemFromLocation;
+
+    const answers = isHistoryView ? (historyItem?.answers || {}) : contextAnswers;
+    const userInfo = isHistoryView ? (historyItem?.userInfo || historyItem) : contextUserInfo;
 
     // Use questions from context for current view to get latest feedback,
     // UNLESS it's history view. For history, we might want to use the feedback *at the time*?
@@ -279,6 +300,15 @@ const ETNReport = () => {
             setIsGeneratingWord(false);
         }
     };
+
+    if (loadingDetails) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                <div className="w-16 h-16 bg-bg-tertiary rounded-full mb-4"></div>
+                <h2 className="text-xl font-bold text-text-secondary">Carregando detalhes do diagnóstico...</h2>
+            </div>
+        );
+    }
 
     return (
         <div ref={resultsRef} className="flex flex-col gap-10 pb-20 animate-fadeIn bg-white p-8">

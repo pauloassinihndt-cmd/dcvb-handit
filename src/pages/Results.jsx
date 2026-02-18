@@ -14,12 +14,33 @@ const Results = () => {
     const location = useLocation();
 
     // Determine if we are viewing a past result or a fresh one
-    const historyItem = location.state?.historyItem;
+    const historyItemFromLocation = location.state?.historyItem;
+    const [historyDetails, setHistoryDetails] = useState(null);
+    const [loadingDetails, setLoadingDetails] = useState(!!historyItemFromLocation && !historyItemFromLocation.answers);
 
-    // Use data from history if available, otherwise from context
-    const isHistoryView = !!historyItem;
-    const answers = isHistoryView ? (historyItem.answers || {}) : contextAnswers;
-    const userInfo = isHistoryView ? (historyItem.userInfo || historyItem) : contextUserInfo;
+    // Fetch details if viewing history and they're missing
+    useEffect(() => {
+        const fetchDetails = async () => {
+            if (historyItemFromLocation && !historyItemFromLocation.answers) {
+                try {
+                    const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/history/${historyItemFromLocation.id}/details`);
+                    const details = await res.json();
+                    setHistoryDetails(details);
+                } catch (error) {
+                    console.error('Erro ao buscar detalhes do histórico:', error);
+                } finally {
+                    setLoadingDetails(false);
+                }
+            }
+        };
+        fetchDetails();
+    }, [historyItemFromLocation]);
+
+    const isHistoryView = !!historyItemFromLocation;
+    const historyItem = historyDetails ? { ...historyItemFromLocation, ...historyDetails } : historyItemFromLocation;
+
+    const answers = isHistoryView ? (historyItem?.answers || {}) : contextAnswers;
+    const userInfo = isHistoryView ? (historyItem?.userInfo || historyItem) : contextUserInfo;
 
     // Use questions from context for current view to get latest feedback,
     // UNLESS it's history view. For history, we might want to use the feedback *at the time*?
@@ -90,14 +111,27 @@ const Results = () => {
     // Save to history ONLY if it's a new diagnosis (not viewing history)
     useEffect(() => {
         if (!isHistoryView && Object.keys(answers).length > 0) {
+            // Calculate feedback text for each section before saving
+            const sectionScoresWithFeedback = sectionScores.map(section => {
+                const levels = section.feedback?.levels || {};
+                let feedback_calculated = '';
+                if (section.score <= 25) feedback_calculated = levels.initial || 'Nível Inicial: Processos ainda não estruturados.';
+                else if (section.score <= 50) feedback_calculated = levels.basic || 'Nível Básico: Existem controles, mas manuais e pouco integrados.';
+                else if (section.score <= 75) feedback_calculated = levels.intermediate || 'Nível Intermediário: Processos definidos e parcialmente automatizados.';
+                else feedback_calculated = levels.advanced || 'Nível Avançado: Gestão otimizada com alta automação e uso de dados.';
+
+                return { ...section, feedback_calculated };
+            });
+
             addToHistory({
                 date: new Date().toISOString(),
                 company: userInfo.empresa,
                 name: userInfo.nome,
                 score: overallScore,
-                sectionScores, // Save scores for easier replay
-                answers, // Save raw answers if needed later
-                userInfo // Save full user info (including ETN/Vendedor)
+                maturityLabel: maturity.label,
+                sectionScores: sectionScoresWithFeedback,
+                answers,
+                userInfo
             });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -279,6 +313,15 @@ const Results = () => {
             setIsGeneratingWord(false);
         }
     };
+
+    if (loadingDetails) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                <div className="w-16 h-16 bg-bg-tertiary rounded-full mb-4"></div>
+                <h2 className="text-xl font-bold text-text-secondary">Carregando detalhes do diagnóstico...</h2>
+            </div>
+        );
+    }
 
     return (
         <div ref={resultsRef} className="flex flex-col gap-10 pb-20 animate-fadeIn bg-white p-8">
