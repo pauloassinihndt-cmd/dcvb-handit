@@ -12,15 +12,18 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Criar roteador para API para suportar o prefixo /api usado no frontend e nginx
+const apiRouter = express.Router();
+
 // Rota de Health Check
-app.get('/health', (req, res) => {
+apiRouter.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // --- ROTAS DO SISTEMA ---
 
 // Listar Indústrias
-app.get('/industries', async (req, res) => {
+apiRouter.get('/industries', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM industries WHERE active = 1 ORDER BY created_at ASC');
         const mappedRows = Array.isArray(rows) ? rows.map(row => ({
@@ -35,7 +38,7 @@ app.get('/industries', async (req, res) => {
 });
 
 // Adicionar Nova Indústria
-app.post('/industries', async (req, res) => {
+apiRouter.post('/industries', async (req, res) => {
     const { name } = req.body;
     const connection = await pool.getConnection();
     try {
@@ -73,7 +76,7 @@ app.post('/industries', async (req, res) => {
 });
 
 // Atualizar Nome da Indústria
-app.put('/industries/:id', async (req, res) => {
+apiRouter.put('/industries/:id', async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
     try {
@@ -85,7 +88,7 @@ app.put('/industries/:id', async (req, res) => {
 });
 
 // Alternar Status da Indústria
-app.patch('/industries/:id/toggle', async (req, res) => {
+apiRouter.patch('/industries/:id/toggle', async (req, res) => {
     const { id } = req.params;
     try {
         await pool.execute('UPDATE industries SET active = 1 - active WHERE id = ?', [id]);
@@ -96,7 +99,7 @@ app.patch('/industries/:id/toggle', async (req, res) => {
 });
 
 // Excluir Indústria
-app.delete('/industries/:id', async (req, res) => {
+apiRouter.delete('/industries/:id', async (req, res) => {
     const { id } = req.params;
     try {
         await pool.execute('DELETE FROM industries WHERE id = ?', [id]);
@@ -107,7 +110,7 @@ app.delete('/industries/:id', async (req, res) => {
 });
 
 // Obter Perguntas por Indústria
-app.get('/questions/:industryId', async (req, res) => {
+apiRouter.get('/questions/:industryId', async (req, res) => {
     const { industryId } = req.params;
     try {
         // Busca as seções
@@ -148,7 +151,7 @@ app.get('/questions/:industryId', async (req, res) => {
 });
 
 // Salvar Novo Diagnóstico
-app.post('/diagnoses', async (req, res) => {
+apiRouter.post('/diagnoses', async (req, res) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
@@ -199,7 +202,7 @@ app.post('/diagnoses', async (req, res) => {
 });
 
 // Listar Histórico
-app.get('/history', async (req, res) => {
+apiRouter.get('/history', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM diagnoses ORDER BY created_at DESC');
 
@@ -234,7 +237,7 @@ app.get('/history', async (req, res) => {
 });
 
 // Obter detalhes de um diagnóstico (Respostas e Resultados de Seção)
-app.get('/history/:id/details', async (req, res) => {
+apiRouter.get('/history/:id/details', async (req, res) => {
     const { id } = req.params;
     try {
         const [answers] = await pool.query('SELECT * FROM diagnosis_answers WHERE diagnosis_id = ?', [id]);
@@ -265,12 +268,15 @@ app.get('/history/:id/details', async (req, res) => {
 });
 
 // Excluir um Diagnóstico do Histórico
-app.delete('/history/:id', async (req, res) => {
+apiRouter.delete('/history/:id', async (req, res) => {
     const { id } = req.params;
+    console.log('Tentando excluir diagnóstico:', id);
     try {
-        // O MySQL com ON DELETE CASCADE nas tabelas diagnosis_answers e diagnosis_section_results
-        // cuidará de remover os detalhes automaticamente.
-        await pool.execute('DELETE FROM diagnoses WHERE id = ?', [id]);
+        const [result] = await pool.execute('DELETE FROM diagnoses WHERE id = ?', [id]);
+        console.log('Resultado da exclusão:', result);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Diagnóstico não encontrado' });
+        }
         res.json({ message: 'Diagnóstico removido com sucesso' });
     } catch (error) {
         console.error('Erro ao excluir histórico:', error);
@@ -279,14 +285,16 @@ app.delete('/history/:id', async (req, res) => {
 });
 
 // Excluir Vários Diagnósticos (Bulk Delete)
-app.post('/history/delete-many', async (req, res) => {
+apiRouter.post('/history/delete-many', async (req, res) => {
     const { ids } = req.body;
+    console.log('Tentando excluir múltiplos diagnósticos:', ids);
     if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ error: 'Lista de IDs inválida' });
     }
     try {
-        await pool.query('DELETE FROM diagnoses WHERE id IN (?)', [ids]);
-        res.json({ message: `${ids.length} diagnósticos removidos com sucesso` });
+        const [result] = await pool.query('DELETE FROM diagnoses WHERE id IN (?)', [ids]);
+        console.log('Resultado da exclusão múltipla:', result);
+        res.json({ message: `${result.affectedRows} diagnósticos removidos com sucesso` });
     } catch (error) {
         console.error('Erro ao excluir múltiplos históricos:', error);
         res.status(500).json({ error: error.message });
@@ -294,7 +302,7 @@ app.post('/history/delete-many', async (req, res) => {
 });
 
 // Atualizar Estrutura de Perguntas de uma Indústria
-app.put('/questions/:industryId', async (req, res) => {
+apiRouter.put('/questions/:industryId', async (req, res) => {
     const { industryId } = req.params;
     const sections = req.body;
     const connection = await pool.getConnection();
@@ -357,7 +365,7 @@ app.put('/questions/:industryId', async (req, res) => {
 // --- ROTAS DE AUTENTICAÇÃO E SEGURANÇA ---
 
 // Login simplificado (verificando no banco)
-app.post('/login', async (req, res) => {
+apiRouter.post('/login', async (req, res) => {
     const { username, password } = req.body;
     try {
         const [rows] = await pool.query('SELECT * FROM users WHERE username = ? AND password_hash = ?', [username, password]);
@@ -373,7 +381,7 @@ app.post('/login', async (req, res) => {
 });
 
 // Alterar Senha
-app.post('/admin/change-password', async (req, res) => {
+apiRouter.post('/admin/change-password', async (req, res) => {
     const { username, currentPassword, newPassword } = req.body;
     try {
         // Verifica se a senha atual está correta
@@ -391,6 +399,22 @@ app.post('/admin/change-password', async (req, res) => {
         console.error('Erro ao alterar senha:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// Vincular as rotas à aplicação com suporte a ambos prefixos (local e proxy nginx)
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
+
+// Rota para capturar 404 e ajudar no debug de caminhos
+app.use((req, res) => {
+    console.warn(`[404] Rota não encontrada: ${req.method} ${req.url}`);
+    res.status(404).json({ error: 'Rota não encontrada', path: req.url });
+});
+
+// Middleware de erro global
+app.use((err, req, res, next) => {
+    console.error('[500] Erro interno do servidor:', err);
+    res.status(500).json({ error: 'Erro interno do servidor', detail: err.message });
 });
 
 app.listen(port, () => {

@@ -4,7 +4,17 @@ import { questionsData } from '../data/questions';
 const DiagnosisContext = createContext();
 
 // Detectar se está rodando localmente ou em produção para ajustar a URL da API
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Em produção na VPS, as chamadas devem ser relativas ao caminho /dcvb/api para não quebrar em subdiretórios
+let API_URL = import.meta.env.VITE_API_URL;
+if (!API_URL) {
+    // Se estiver em um subdiretório como /dcvb/, precisamos manter a base
+    const path = window.location.pathname;
+    if (path.includes('/dcvb')) {
+        API_URL = '/dcvb/api';
+    } else {
+        API_URL = '/api';
+    }
+}
 
 export const DiagnosisProvider = ({ children }) => {
     // Basic States
@@ -91,11 +101,22 @@ export const DiagnosisProvider = ({ children }) => {
 
     const addToHistory = async (result) => {
         try {
+            // Fallback para UUID se randomUUID não estiver disponível (ex: contextos não-HTTPS)
+            const generateUUID = () => {
+                if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                    return crypto.randomUUID();
+                }
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            };
+
             const response = await fetch(`${API_URL}/diagnoses`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: crypto.randomUUID(),
+                    id: generateUUID(),
                     industry_id: currentIndustryId,
                     userInfo: result.userInfo,
                     total_score: result.score,
@@ -266,16 +287,26 @@ export const DiagnosisProvider = ({ children }) => {
             scoringConfig: { 'default-geral': [0, 33, 66, 100] },
             updateScoringConfig: () => { },
             deleteFromHistory: async (id) => {
+                if (!id) {
+                    console.error('ID de exclusão ausente');
+                    return;
+                }
                 try {
                     const response = await fetch(`${API_URL}/history/${id}`, { method: 'DELETE' });
                     if (response.ok) {
                         setHistory(prev => prev.filter(item => item.id !== id));
+                    } else {
+                        const errorData = await response.json();
+                        console.error('Falha ao excluir histórico:', errorData);
+                        alert(`Erro ao excluir: ${errorData.error || 'Erro no servidor'}`);
                     }
                 } catch (error) {
-                    console.error('Erro ao excluir do histórico:', error);
+                    console.error('Erro de conexão ao excluir do histórico:', error);
+                    alert('Erro de conexão com o servidor ao excluir.');
                 }
             },
             deleteManyFromHistory: async (ids) => {
+                if (!ids || ids.length === 0) return;
                 try {
                     const response = await fetch(`${API_URL}/history/delete-many`, {
                         method: 'POST',
@@ -284,9 +315,14 @@ export const DiagnosisProvider = ({ children }) => {
                     });
                     if (response.ok) {
                         setHistory(prev => prev.filter(item => !ids.includes(item.id)));
+                    } else {
+                        const errorData = await response.json();
+                        console.error('Falha ao excluir múltiplos:', errorData);
+                        alert(`Erro ao excluir vários: ${errorData.error || 'Erro no servidor'}`);
                     }
                 } catch (error) {
-                    console.error('Erro ao excluir múltiplos do histórico:', error);
+                    console.error('Erro de conexão ao excluir múltiplos do histórico:', error);
+                    alert('Erro de conexão com o servidor ao excluir vários.');
                 }
             }
         }}>
