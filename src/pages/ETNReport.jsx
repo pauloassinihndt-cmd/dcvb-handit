@@ -310,6 +310,11 @@ const ETNReport = () => {
                 'Cargo',
                 'ETN',
                 'Vendedor',
+                'Ramo de Atividade',
+                'Tempo Orcamento',
+                'Faturamento',
+                'Faixa Colaboradores',
+                'ERP',
                 'Pontuacao Geral (%)'
             ];
 
@@ -324,6 +329,11 @@ const ETNReport = () => {
                 `"${userInfo.cargo || ''}"`,
                 `"${userInfo.etn || ''}"`,
                 `"${userInfo.vendedor || ''}"`,
+                `"${userInfo.ramoAtividade || ''}"`,
+                `"${userInfo.tempoOrcamento || ''}"`,
+                `"${userInfo.faturamento || ''}"`,
+                `"${userInfo.faixaColaboradores || ''}"`,
+                `"${userInfo.erp || ''}"`,
                 overallScore
             ];
 
