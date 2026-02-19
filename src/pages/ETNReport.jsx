@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDiagnosis } from '../context/DiagnosisContext';
 import ScoreChart from '../components/ScoreChart';
-import { RefreshCcw, Download, FileText } from 'lucide-react';
+import { RefreshCcw, Download, FileText, FileSpreadsheet } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -301,6 +301,57 @@ const ETNReport = () => {
         }
     };
 
+    const handleDownloadCSV = () => {
+        try {
+            const headers = [
+                'Empresa',
+                'Responsavel',
+                'Email',
+                'Cargo',
+                'ETN',
+                'Vendedor',
+                'Pontuacao Geral (%)'
+            ];
+
+            sectionScores.forEach(section => {
+                headers.push(`${section.title} (%)`);
+            });
+
+            const rowData = [
+                `"${userInfo.empresa || ''}"`,
+                `"${userInfo.nome || ''}"`,
+                `"${userInfo.email || ''}"`,
+                `"${userInfo.cargo || ''}"`,
+                `"${userInfo.etn || ''}"`,
+                `"${userInfo.vendedor || ''}"`,
+                overallScore
+            ];
+
+            sectionScores.forEach(section => {
+                rowData.push(section.score);
+            });
+
+            const csvContent = [
+                headers.join(';'),
+                rowData.join(';')
+            ].join('\n');
+
+            const blob = new Blob(['\ufeff', csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+            link.download = `Dados-ETN-${userInfo.empresa || 'Empresa'}-${dateStr}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error generating CSV:', error);
+            alert('Erro ao gerar arquivo CSV.');
+        }
+    };
+
     if (loadingDetails) {
         return (
             <div className="flex flex-col items-center justify-center py-20 animate-pulse">
@@ -324,6 +375,13 @@ const ETNReport = () => {
                     </div>
 
                     <div className="flex gap-3 print:hidden" data-html2canvas-ignore>
+                        <button
+                            onClick={handleDownloadCSV}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border-color hover:bg-bg-tertiary transition-colors"
+                        >
+                            <FileSpreadsheet size={18} />
+                            Baixar CSV (Importar)
+                        </button>
                         <button
                             onClick={handleDownloadWord}
                             disabled={isGeneratingWord}
