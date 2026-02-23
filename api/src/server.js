@@ -362,6 +362,118 @@ apiRouter.put('/questions/:industryId', async (req, res) => {
     }
 });
 
+// Importação em Lote de Feedbacks
+apiRouter.post('/questions/import-feedbacks', async (req, res) => {
+    const feedbackList = req.body; // Array de { industryName, areaName, feedbacks }
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        let updatedCount = 0;
+        const notFoundIndustries = [];
+
+        for (const item of feedbackList) {
+            // 1. Achar Indústria (ignora case e acentos se possível no BD, mas aqui fazemos LOWER)
+            const [industries] = await connection.query('SELECT id FROM industries WHERE LOWER(name) = LOWER(?)', [item.industryName.trim()]);
+
+            if (industries.length === 0) {
+                notFoundIndustries.push(item.industryName);
+                continue;
+            }
+            const industryId = industries[0].id;
+
+            // 2. Achar Seção
+            const [sections] = await connection.query('SELECT id FROM sections WHERE industry_id = ? AND LOWER(title) = LOWER(?)', [industryId, item.areaName.trim()]);
+            if (sections.length === 0) {
+                continue;
+            }
+            const sectionId = sections[0].id;
+
+            // 3. Atualizar ou Inserir Feedback
+            const [existing] = await connection.query('SELECT id FROM section_feedbacks WHERE section_id = ?', [sectionId]);
+            if (existing.length > 0) {
+                await connection.execute(
+                    'UPDATE section_feedbacks SET initial_text = ?, basic_text = ?, intermediate_text = ?, advanced_text = ? WHERE section_id = ?',
+                    [item.feedbacks.initial, item.feedbacks.basic, item.feedbacks.intermediate, item.feedbacks.advanced, sectionId]
+                );
+            } else {
+                await connection.execute(
+                    'INSERT INTO section_feedbacks (id, section_id, initial_text, basic_text, intermediate_text, advanced_text) VALUES (?, ?, ?, ?, ?, ?)',
+                    [uuidv4(), sectionId, item.feedbacks.initial, item.feedbacks.basic, item.feedbacks.intermediate, item.feedbacks.advanced]
+                );
+            }
+            updatedCount++;
+        }
+
+        await connection.commit();
+        res.json({ updatedCount, notFoundIndustries: [...new Set(notFoundIndustries)] });
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Erro no import de feedbacks:', error);
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+// Duplicar Estrutura ou Feedbacks entre Ramos
+apiRouter.post('/questions/duplicate', async (req, res) => {
+    const { source, target } = req.body;
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        let query = 'SELECT * FROM sections WHERE industry_id = ?';
+        let params = [source.industryId];
+        if (source.sectionId) {
+            query += ' AND id = ?';
+            params.push(source.sectionId);
+        }
+        const [sections] = await connection.query(query, params);
+
+        for (const section of sections) {
+            let targetSectionId;
+            const [existing] = await connection.query('SELECT id FROM sections WHERE industry_id = ? AND title = ?', [target.industryId, section.title]);
+
+            if (existing.length > 0) {
+                targetSectionId = existing[0].id;
+            } else if (!target.sectionId) {
+                targetSectionId = uuidv4();
+                await connection.execute(
+                    'INSERT INTO sections (id, industry_id, title, order_index) VALUES (?, ?, ?, ?)',
+                    [targetSectionId, target.industryId, section.title, section.order_index]
+                );
+            } else {
+                continue;
+            }
+
+            const [feedbacks] = await connection.query('SELECT * FROM section_feedbacks WHERE section_id = ?', [section.id]);
+            if (feedbacks.length > 0) {
+                const f = feedbacks[0];
+                const [targetFeedbacks] = await connection.query('SELECT id FROM section_feedbacks WHERE section_id = ?', [targetSectionId]);
+                if (targetFeedbacks.length > 0) {
+                    await connection.execute(
+                        'UPDATE section_feedbacks SET initial_text = ?, basic_text = ?, intermediate_text = ?, advanced_text = ? WHERE section_id = ?',
+                        [f.initial_text, f.basic_text, f.intermediate_text, f.advanced_text, targetSectionId]
+                    );
+                } else {
+                    await connection.execute(
+                        'INSERT INTO section_feedbacks (id, section_id, initial_text, basic_text, intermediate_text, advanced_text) VALUES (?, ?, ?, ?, ?, ?)',
+                        [uuidv4(), targetSectionId, f.initial_text, f.basic_text, f.intermediate_text, f.advanced_text]
+                    );
+                }
+            }
+        }
+
+        await connection.commit();
+        res.json({ success: true, message: 'Duplicação concluída' });
+    } catch (error) {
+        if (connection) await connection.rollback();
+        res.status(500).json({ error: error.message });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
 // --- ROTAS DE AUTENTICAÇÃO E SEGURANÇA ---
 
 // Login simplificado (verificando no banco)

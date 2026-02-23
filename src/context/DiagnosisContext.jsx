@@ -324,6 +324,82 @@ export const DiagnosisProvider = ({ children }) => {
                     console.error('Erro de conexão ao excluir múltiplos do histórico:', error);
                     alert('Erro de conexão com o servidor ao excluir vários.');
                 }
+            },
+            importQuestionsBatch: async (updates, newIndustries) => {
+                try {
+                    // 1. Criar novas indústrias e pegar seus IDs reais
+                    for (const ind of newIndustries) {
+                        const res = await fetch(`${API_URL}/industries`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: ind.name })
+                        });
+                        if (!res.ok) throw new Error(`Falha ao criar indústria: ${ind.name}`);
+                    }
+
+                    // Re-fetch indústrias para ter os IDs reais sincronizados
+                    const indRes = await fetch(`${API_URL}/industries`);
+                    const allInds = await indRes.json();
+                    setIndustries(allInds);
+
+                    // 2. Atualizar estruturas seções/perguntas
+                    for (const [id, sections] of Object.entries(updates)) {
+                        let targetId = id;
+                        // Se for um UUID temporário de nova indústria, buscar o ID real pelo nome
+                        const newInd = newIndustries.find(ni => ni.id === id);
+                        if (newInd) {
+                            const realInd = allInds.find(i => i.name.toLowerCase() === newInd.name.toLowerCase());
+                            if (realInd) targetId = realInd.id;
+                        }
+
+                        const qRes = await fetch(`${API_URL}/questions/${targetId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(sections)
+                        });
+                        if (!qRes.ok) console.warn(`Falha ao importar perguntas para indústria ${targetId}`);
+                    }
+                    return true;
+                } catch (error) {
+                    console.error('Erro no importQuestionsBatch:', error);
+                    return false;
+                }
+            },
+            importFeedbacksBatch: async (feedbackData) => {
+                try {
+                    const res = await fetch(`${API_URL}/questions/import-feedbacks`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(feedbackData)
+                    });
+                    return await res.json();
+                } catch (error) {
+                    console.error('Erro no importFeedbacksBatch:', error);
+                    return { updatedCount: 0, error: error.message };
+                }
+            },
+            duplicateQuestions: async (source, target) => {
+                try {
+                    const res = await fetch(`${API_URL}/questions/duplicate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ source, target })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        // Recarrega se o destino for o ramo atual
+                        if (target.industryId === currentIndustryId) {
+                            const qRes = await fetch(`${API_URL}/questions/${currentIndustryId}`);
+                            const qData = await qRes.json();
+                            setAllQuestions(prev => ({ ...prev, [currentIndustryId]: qData }));
+                        }
+                        return true;
+                    }
+                    return false;
+                } catch (error) {
+                    console.error('Erro no duplicateQuestions:', error);
+                    return false;
+                }
             }
         }}>
             {children}

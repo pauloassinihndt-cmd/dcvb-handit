@@ -4,7 +4,7 @@ import { useDiagnosis } from '../../context/DiagnosisContext';
 import { ChevronDown, ChevronUp, Plus, Save, Eraser, Trash2, Copy } from 'lucide-react';
 
 const QuestionMaintenance = () => {
-    const { questions, updateQuestions, industries, selectIndustryScope, currentIndustryId, scoringConfig, duplicateQuestions } = useDiagnosis();
+    const { questions, updateQuestions, industries, selectIndustryScope, currentIndustryId, scoringConfig, duplicateQuestions, deleteIndustry } = useDiagnosis();
     const [expandedSection, setExpandedSection] = useState(null);
 
     // Deep copy for editing
@@ -172,6 +172,23 @@ const QuestionMaintenance = () => {
         setSectionToDelete(null);
     };
 
+    const [industryToDelete, setIndustryToDelete] = useState(null);
+
+    const handleConfirmDeleteIndustry = async () => {
+        if (!industryToDelete) return;
+        const id = industryToDelete;
+        setIndustryToDelete(null);
+
+        // Se deletar o atual, mudar para outro primeiro
+        if (id === currentIndustryId) {
+            const other = industries.find(ind => ind.id !== id);
+            if (other) selectIndustryScope(other.id);
+        }
+
+        await deleteIndustry(id);
+        alert('Ramo excluído com sucesso.');
+    };
+
     const handleIndustryChange = (e) => {
         if (hasChanges) {
             if (!confirm('Você tem alterações não salvas. Deseja realmente mudar de ramo? As alterações perdidas.')) {
@@ -285,6 +302,17 @@ const QuestionMaintenance = () => {
                         </select>
                         <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" />
                     </div>
+
+                    {!industries.find(i => i.id === currentIndustryId)?.isFixed && (
+                        <button
+                            onClick={() => setIndustryToDelete(currentIndustryId)}
+                            className="flex items-center gap-2 px-4 py-3 rounded-lg bg-white border border-accent-danger/30 hover:bg-accent-danger/5 font-bold text-accent-danger transition-all shadow-sm"
+                            title="Excluir este Ramo de Atividade"
+                        >
+                            <Trash2 size={20} />
+                            Excluir Ramo
+                        </button>
+                    )}
 
                     <button
                         onClick={openDuplicateModal}
@@ -507,6 +535,28 @@ const QuestionMaintenance = () => {
                         <div className="flex gap-3">
                             <button onClick={cancelDeleteSection} className="flex-1 py-3 rounded-lg border border-border-color font-bold text-text-secondary hover:bg-bg-tertiary transition-colors">Cancelar</button>
                             <button onClick={confirmDeleteSection} className="flex-1 py-3 rounded-lg bg-accent-danger hover:bg-red-600 text-white font-bold transition-colors">Sim, Excluir</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {industryToDelete && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setIndustryToDelete(null)}>
+                    <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="flex flex-col items-center text-center mb-6">
+                            <div className="w-16 h-16 bg-accent-danger/10 text-accent-danger rounded-full flex items-center justify-center mb-4">
+                                <Trash2 size={32} />
+                            </div>
+                            <h3 className="text-xl font-bold text-text-primary mb-2">Excluir Ramo de Atividade?</h3>
+                            <p className="text-text-secondary">
+                                Tem certeza que deseja excluir o ramo <span className="font-bold text-text-primary">"{industries.find(i => i.id === industryToDelete)?.name}"</span>?
+                                <br /><br />
+                                Isso removerá permanentemente todas as perguntas e áreas associadas a ele.
+                            </p>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={() => setIndustryToDelete(null)} className="flex-1 py-3 rounded-lg border border-border-color font-bold text-text-secondary hover:bg-bg-tertiary transition-colors">Cancelar</button>
+                            <button onClick={handleConfirmDeleteIndustry} className="flex-1 py-3 rounded-lg bg-accent-danger hover:bg-red-600 text-white font-bold transition-colors shadow-lg">Sim, Excluir Tudo</button>
                         </div>
                     </div>
                 </div>

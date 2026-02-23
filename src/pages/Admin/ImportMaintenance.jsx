@@ -42,11 +42,41 @@ const ImportMaintenance = () => {
         const semiCount = (firstLine.match(/;/g) || []).length;
         const delimiter = semiCount >= commaCount ? ';' : ',';
 
-        // 3. Parse Headers
-        const normalizeHeader = (h) => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/^"|"$/g, '');
+        // 3. Helper for robust line splitting (handles quoted delimiters)
+        const splitLine = (line) => {
+            const parts = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    // Handle escaped quotes ("")
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === delimiter && !inQuotes) {
+                    parts.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            parts.push(current);
+            return parts;
+        };
 
-        const rawHeaders = firstLine.split(delimiter);
-        const headers = rawHeaders.map(normalizeHeader);
+        // 4. Parse Headers (Normalize and ignore punctuation for robust matching)
+        const headers = splitLine(lines[0]).map(h =>
+            h.toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+                .trim()
+                .replace(/^"|"$/g, '')
+        );
 
         const result = [];
 
@@ -54,22 +84,13 @@ const ImportMaintenance = () => {
             const line = lines[i];
             if (!line.trim()) continue;
 
-            let values;
-            if (delimiter === ';') {
-                values = line.split(';');
-            } else {
-                // Regex for comma split handling quotes
-                values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-                if (!values) values = line.split(',');
-            }
-
-            const cleanValues = (values || []).map(v =>
+            const cleanValues = splitLine(line).map(v =>
                 v ? v.trim().replace(/^"|"$/g, '').replace(/""/g, '"') : ''
             );
 
             const row = {};
             headers.forEach((header, index) => {
-                row[header] = cleanValues[index] || '';
+                row[header || `col_${index}`] = cleanValues[index] || '';
             });
             result.push(row);
         }
@@ -94,13 +115,18 @@ const ImportMaintenance = () => {
         downloadCsv(csvContent, "modelo_perguntas.csv");
     };
 
-    const handleImportQuestions = async () => {
-        if (!fileQuestions) return;
+    const handleImportQuestions = async (preProcessedData = null) => {
+        if (!fileQuestions && !preProcessedData) return;
         setMessageQuestions({ type: 'info', text: 'Lendo arquivo de Perguntas...' });
 
         try {
-            const text = await fileQuestions.text();
-            const data = parseCSV(text);
+            let data;
+            if (preProcessedData) {
+                data = preProcessedData;
+            } else {
+                const text = await fileQuestions.text();
+                data = parseCSV(text);
+            }
 
             if (data.length === 0) {
                 setMessageQuestions({ type: 'error', text: 'Arquivo vazio ou formato inválido.' });
@@ -122,7 +148,8 @@ const ImportMaintenance = () => {
             // Check for existing industries
             const existingConflicts = [];
             importIndustryNames.forEach(name => {
-                if (industries.some(ind => ind.name.toLowerCase() === name.toLowerCase())) {
+                const normName = normalizeString(name);
+                if (industries.some(ind => normalizeString(ind.name) === normName)) {
                     existingConflicts.push(name);
                 }
             });
@@ -145,7 +172,7 @@ const ImportMaintenance = () => {
         }
     };
 
-    const executeImportQuestions = (data) => {
+    const executeImportQuestions = async (data) => {
         try {
             const industryMap = new Map(); // Name -> { id, questionsMap }
             const newIndustriesToAdd = [];
@@ -169,7 +196,8 @@ const ImportMaintenance = () => {
 
                 if (!industryData) {
                     // Check if exists in DB
-                    const existingInd = industries.find(i => i.name.toLowerCase() === ramoName.toLowerCase());
+                    const normRamoName = normalizeString(ramoName);
+                    const existingInd = industries.find(i => normalizeString(i.name) === normRamoName);
                     if (existingInd) {
                         industryId = existingInd.id;
                     } else {
@@ -220,7 +248,7 @@ const ImportMaintenance = () => {
                 updates[indData.id] = Array.from(indData.sectionsMap.values());
             });
 
-            importQuestionsBatch(updates, newIndustriesToAdd);
+            await importQuestionsBatch(updates, newIndustriesToAdd);
 
             setMessageQuestions({ type: 'success', text: `Importação concluída! ${Object.keys(updates).length} ramos processados.` });
             setConfirmModal({ isOpen: false, existingIndustries: [], importData: null });
@@ -238,25 +266,28 @@ const ImportMaintenance = () => {
         e.preventDefault();
         setIsDraggingFeedbacks(false);
         const droppedFile = e.dataTransfer.files[0];
-        if (droppedFile) processFile(droppedFile, setFileFeedbacks, setMessageFeedbacks);
+        if (droppedFile) processFile(droppedFile, 'feedbacks');
     };
     const handleFileSelectFeedbacks = (e) => {
         const selectedFile = e.target.files[0];
-        if (selectedFile) processFile(selectedFile, setFileFeedbacks, setMessageFeedbacks);
+        if (selectedFile) processFile(selectedFile, 'feedbacks');
     };
     const handleDownloadTemplateFeedbacks = () => {
         const csvContent = "data:text/csv;charset=utf-8,Ramo de Atividade,Area,Nivel 1,Nivel 2,Nivel 3,Nivel 4\nExemplo Ramo,Exemplo Area,Texto Nivel 1,Texto Nivel 2,Texto Nivel 3,Texto Nivel 4";
         downloadCsv(csvContent, "modelo_feedbacks.csv");
     };
-    const handleImportFeedbacks = async () => {
-        if (!fileFeedbacks) return;
+    const handleImportFeedbacks = async (preProcessedData = null) => {
+        if (!fileFeedbacks && !preProcessedData) return;
         setMessageFeedbacks({ type: 'info', text: 'Lendo arquivo de Feedbacks...' });
 
         try {
-            const text = await fileFeedbacks.text();
-
-            // Debug parsing
-            const data = parseCSV(text);
+            let data;
+            if (preProcessedData) {
+                data = preProcessedData;
+            } else {
+                const text = await fileFeedbacks.text();
+                data = parseCSV(text);
+            }
 
             if (data.length === 0) {
                 setMessageFeedbacks({ type: 'error', text: 'Arquivo vazio ou formato inválido.' });
@@ -288,7 +319,7 @@ const ImportMaintenance = () => {
                 };
             }).filter(item => item.industryName && item.areaName);
 
-            const result = importFeedbacksBatch(feedbackDataList);
+            const result = await importFeedbacksBatch(feedbackDataList);
 
             // Handle new return format { updatedCount, notFoundIndustries }
             const count = typeof result === 'object' ? result.updatedCount : result;
@@ -329,6 +360,7 @@ const ImportMaintenance = () => {
             .toLowerCase()
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
             .replace(/\s+/g, ' ')
             .trim();
     };
@@ -385,6 +417,7 @@ const ImportMaintenance = () => {
                         else stats.invalid++;
 
                         return {
+                            selected: status === 'success',
                             originalRow: row,
                             display: {
                                 Ramo: rawIndustry,
@@ -397,6 +430,7 @@ const ImportMaintenance = () => {
                 } else {
                     // Default logic for Questions (just show raw data for now, detailed validation is complex there)
                     processedData = rawData.map(row => ({
+                        selected: true,
                         originalRow: row,
                         display: row
                     }));
@@ -425,15 +459,44 @@ const ImportMaintenance = () => {
     };
 
     const handleConfirmPreview = () => {
-        const { file, type } = previewModal;
+        const { data, type } = previewModal;
+        const selectedData = data.filter(row => row.selected).map(row => row.originalRow);
+
+        if (selectedData.length === 0) return;
+
         if (type === 'questions') {
-            setFileQuestions(file);
-            setMessageQuestions(null);
+            // Re-trigger the import logic with ONLY selected data
+            handleImportQuestions(selectedData);
         } else {
-            setFileFeedbacks(file);
-            setMessageFeedbacks(null);
+            // Re-trigger the import logic with ONLY selected data
+            handleImportFeedbacks(selectedData);
         }
         setPreviewModal({ isOpen: false, data: [], file: null, type: null, totalRows: 0 });
+    };
+
+    const toggleRowSelection = (index) => {
+        setPreviewModal(prev => {
+            const newData = [...prev.data];
+            newData[index] = { ...newData[index], selected: !newData[index].selected };
+
+            // Re-calculate valid stats based on selection
+            const stats = { ...prev.stats };
+            stats.valid = newData.filter(r => r.selected).length;
+
+            return { ...prev, data: newData, stats };
+        });
+    };
+
+    const toggleAllSelection = () => {
+        setPreviewModal(prev => {
+            const allSelected = prev.data.every(r => r.selected);
+            const newData = prev.data.map(r => ({ ...r, selected: !allSelected }));
+
+            const stats = { ...prev.stats };
+            stats.valid = newData.filter(r => r.selected).length;
+
+            return { ...prev, data: newData, stats };
+        });
     };
 
     const handleCancelPreview = () => {
@@ -650,7 +713,7 @@ const ImportMaintenance = () => {
                                     <span className="text-2xl font-bold text-text-primary">{previewModal.stats.total}</span>
                                 </div>
                                 <div className="p-4 rounded-xl bg-accent-success/10 border border-accent-success/20 flex flex-col items-center">
-                                    <span className="text-accent-success text-xs uppercase font-bold tracking-wider">Válidos</span>
+                                    <span className="text-accent-success text-xs uppercase font-bold tracking-wider">Selecionados</span>
                                     <span className="text-2xl font-bold text-accent-success">{previewModal.stats.valid}</span>
                                 </div>
                                 <div className="p-4 rounded-xl bg-accent-danger/10 border border-accent-danger/20 flex flex-col items-center">
@@ -666,6 +729,14 @@ const ImportMaintenance = () => {
                                 <table className="w-full text-sm text-left">
                                     <thead className="bg-bg-tertiary text-text-primary font-bold sticky top-0 z-10 shadow-sm">
                                         <tr>
+                                            <th className="px-6 py-4 border-b border-border-color w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={previewModal.data.length > 0 && previewModal.data.every(r => r.selected)}
+                                                    onChange={toggleAllSelection}
+                                                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                                />
+                                            </th>
                                             {previewModal.data.length > 0 && Object.keys(previewModal.data[0].display).filter(k => !k.startsWith('_')).map((header) => (
                                                 <th key={header} className="px-6 py-4 border-b border-border-color whitespace-nowrap">
                                                     {header}
@@ -678,7 +749,15 @@ const ImportMaintenance = () => {
                                             const status = row.display._statusType;
                                             const isError = status === 'error';
                                             return (
-                                                <tr key={idx} className={`hover:bg-bg-tertiary/50 transition-colors ${isError ? 'bg-accent-danger/5' : ''}`}>
+                                                <tr key={idx} className={`hover:bg-bg-tertiary/50 transition-colors ${isError ? 'bg-accent-danger/5' : ''} ${row.selected ? '' : 'opacity-60'}`}>
+                                                    <td className="px-6 py-3 border-b border-border-color">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={row.selected}
+                                                            onChange={() => toggleRowSelection(idx)}
+                                                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                                        />
+                                                    </td>
                                                     {Object.entries(row.display).filter(([k]) => !k.startsWith('_')).map(([key, val], vIdx) => (
                                                         <td key={vIdx} className="px-6 py-3 whitespace-nowrap max-w-[300px] truncate">
                                                             {key === 'Status' ? (
@@ -703,9 +782,9 @@ const ImportMaintenance = () => {
                         {/* Footer Actions */}
                         <div className="p-6 border-t border-border-color bg-white flex justify-between items-center">
                             <span className="text-sm text-text-secondary">
-                                {previewModal.stats?.valid === 0 && previewModal.type === 'feedbacks' ?
-                                    'Nenhum registro válido para importar.' :
-                                    'Confirme para processar os registros válidos.'}
+                                {previewModal.stats?.valid === 0 ?
+                                    'Selecione pelo menos um registro para importar.' :
+                                    `Confirme para processar os ${previewModal.stats.valid} registros selecionados.`}
                             </span>
                             <div className="flex gap-3">
                                 <button
