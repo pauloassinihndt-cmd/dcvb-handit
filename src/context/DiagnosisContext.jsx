@@ -56,7 +56,7 @@ export const DiagnosisProvider = ({ children }) => {
                 // Buscar Histórico
                 const histRes = await fetch(`${API_URL}/history`);
                 const histData = await histRes.json();
-                setHistory(histData);
+                setHistory(Array.isArray(histData) ? histData : []);
 
                 setLoading(false);
             } catch (error) {
@@ -133,7 +133,7 @@ export const DiagnosisProvider = ({ children }) => {
                 // Atualizar lista local de histórico
                 const newListRes = await fetch(`${API_URL}/history`);
                 const newList = await newListRes.json();
-                setHistory(newList);
+                setHistory(Array.isArray(newList) ? newList : []);
             }
         } catch (error) {
             console.error('Erro ao salvar diagnóstico:', error);

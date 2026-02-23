@@ -13,7 +13,8 @@ const History = () => {
     const [selectedItem, setSelectedItem] = useState(null);
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: null, data: null });
 
-    const filteredHistory = history.filter(item => {
+    const historyArray = Array.isArray(history) ? history : [];
+    const filteredHistory = historyArray.filter(item => {
         if (!item) return false;
         const matchesSearch = (item.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
             (item.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
@@ -81,7 +82,7 @@ const History = () => {
         closeDeleteModal();
     };
 
-    if (history.length === 0) {
+    if (historyArray.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center py-20 animate-fadeIn">
                 <div className="w-20 h-20 bg-bg-tertiary rounded-full flex items-center justify-center mb-6 text-text-secondary">
