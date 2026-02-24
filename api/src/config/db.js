@@ -9,7 +9,7 @@ const __dirname = dirname(__filename);
 // Carregar o .env a partir do diretório raiz da API (../../.env relativo a src/config/)
 dotenv.config({ path: join(__dirname, '../../.env') });
 
-console.log(`[DB] Conectando como usuário: ${process.env.DB_USER} | Host: ${process.env.DB_HOST} | DB: ${process.env.DB_NAME}`);
+console.log(`[DB] Conectando como usuário: ${process.env.DB_USER} | Host: ${process.env.DB_HOST} | DB: ${process.env.DB_NAME} | Senha lida: ${process.env.DB_PASSWORD?.length || 0} caracteres`);
 
 const pool = mysql.createPool({
     host: process.env.DB_HOST || 'localhost',
