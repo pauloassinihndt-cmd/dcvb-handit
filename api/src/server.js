@@ -363,6 +363,14 @@ apiRouter.put('/questions/:industryId', async (req, res) => {
 });
 
 // Importação em Lote de Feedbacks
+// Helper: normaliza string para comparação (remove acentos, lowercase, trim)
+const normalizeForCompare = (str) => {
+    if (!str) return '';
+    return str.toString().trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ');
+};
+
 apiRouter.post('/questions/import-feedbacks', async (req, res) => {
     const feedbackList = req.body; // Array de { industryName, areaName, feedbacks }
     const connection = await pool.getConnection();
@@ -370,23 +378,38 @@ apiRouter.post('/questions/import-feedbacks', async (req, res) => {
         await connection.beginTransaction();
         let updatedCount = 0;
         const notFoundIndustries = [];
+        const notFoundAreas = [];
+
+        // Buscar todos os ramos e seções de uma vez para comparação normalizada
+        const [allIndustries] = await connection.query('SELECT id, name FROM industries');
+        const [allSections] = await connection.query('SELECT id, industry_id, title FROM sections');
 
         for (const item of feedbackList) {
-            // 1. Achar Indústria (ignora case e acentos se possível no BD, mas aqui fazemos LOWER)
-            const [industries] = await connection.query('SELECT id FROM industries WHERE LOWER(name) = LOWER(?)', [item.industryName.trim()]);
+            const normIndustryName = normalizeForCompare(item.industryName);
 
-            if (industries.length === 0) {
+            // 1. Achar Indústria por nome normalizado (remove acentos e case)
+            const matchedIndustry = allIndustries.find(i => normalizeForCompare(i.name) === normIndustryName);
+
+            if (!matchedIndustry) {
+                console.warn(`[import-feedbacks] Ramo não encontrado: "${item.industryName}" (norm: "${normIndustryName}")`);
                 notFoundIndustries.push(item.industryName);
                 continue;
             }
-            const industryId = industries[0].id;
 
-            // 2. Achar Seção
-            const [sections] = await connection.query('SELECT id FROM sections WHERE industry_id = ? AND LOWER(title) = LOWER(?)', [industryId, item.areaName.trim()]);
-            if (sections.length === 0) {
+            const normAreaName = normalizeForCompare(item.areaName);
+
+            // 2. Achar Seção por título normalizado dentro do ramo
+            const matchedSection = allSections.find(
+                s => s.industry_id === matchedIndustry.id && normalizeForCompare(s.title) === normAreaName
+            );
+
+            if (!matchedSection) {
+                console.warn(`[import-feedbacks] Área não encontrada: "${item.areaName}" no ramo "${item.industryName}" (norm: "${normAreaName}")`);
+                notFoundAreas.push(`${item.industryName} > ${item.areaName}`);
                 continue;
             }
-            const sectionId = sections[0].id;
+
+            const sectionId = matchedSection.id;
 
             // 3. Atualizar ou Inserir Feedback
             const [existing] = await connection.query('SELECT id FROM section_feedbacks WHERE section_id = ?', [sectionId]);
@@ -405,7 +428,8 @@ apiRouter.post('/questions/import-feedbacks', async (req, res) => {
         }
 
         await connection.commit();
-        res.json({ updatedCount, notFoundIndustries: [...new Set(notFoundIndustries)] });
+        console.log(`[import-feedbacks] Concluído: ${updatedCount} atualizados, ${notFoundIndustries.length} ramos e ${notFoundAreas.length} áreas não encontradas.`);
+        res.json({ updatedCount, notFoundIndustries: [...new Set(notFoundIndustries)], notFoundAreas: [...new Set(notFoundAreas)] });
     } catch (error) {
         if (connection) await connection.rollback();
         console.error('Erro no import de feedbacks:', error);
