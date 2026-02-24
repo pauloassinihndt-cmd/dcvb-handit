@@ -258,7 +258,31 @@ export const DiagnosisProvider = ({ children }) => {
         }
     };
 
-    // Nota: Funções de Admin restantes precisarão de rotas no backend para persistência total.
+    // Busca as seções de TODOS os ramos de uma vez (usado na tela de import)
+    const fetchAllSectionsForImport = async () => {
+        const result = {};
+        await Promise.all(
+            industries.map(async (ind) => {
+                if (allQuestions[ind.id]) {
+                    // Já carregado, reusar
+                    result[ind.id] = allQuestions[ind.id];
+                    return;
+                }
+                try {
+                    const res = await fetch(`${API_URL}/questions/${ind.id}`);
+                    const data = await res.json();
+                    const arr = Array.isArray(data) ? data : [];
+                    result[ind.id] = arr;
+                    // Atualiza o cache também
+                    setAllQuestions(prev => ({ ...prev, [ind.id]: arr }));
+                } catch {
+                    result[ind.id] = [];
+                }
+            })
+        );
+        return result;
+    };
+
 
     return (
         <DiagnosisContext.Provider value={{
@@ -274,6 +298,7 @@ export const DiagnosisProvider = ({ children }) => {
             history,
             addToHistory,
             questions,
+            allQuestions,
             industries,
             selectIndustryScope,
             currentIndustryId,
@@ -284,6 +309,7 @@ export const DiagnosisProvider = ({ children }) => {
             updateIndustry,
             deleteIndustry,
             toggleIndustryStatus,
+            fetchAllSectionsForImport,
             scoringConfig: { 'default-geral': [0, 33, 66, 100] },
             updateScoringConfig: () => { },
             deleteFromHistory: async (id) => {

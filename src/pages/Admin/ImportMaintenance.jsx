@@ -3,7 +3,7 @@ import { Upload, FileDown, AlertCircle, CheckCircle, FileSpreadsheet, MessageSqu
 import { useDiagnosis } from '../../context/DiagnosisContext';
 
 const ImportMaintenance = () => {
-    const { updateQuestions, industries, importQuestionsBatch, importFeedbacksBatch } = useDiagnosis();
+    const { updateQuestions, industries, allQuestions, fetchAllSectionsForImport, importQuestionsBatch, importFeedbacksBatch } = useDiagnosis();
     // State for Questions Import
     const [isDraggingQuestions, setIsDraggingQuestions] = useState(false);
     const [fileQuestions, setFileQuestions] = useState(null);
@@ -375,15 +375,18 @@ const ImportMaintenance = () => {
                 let stats = { total: rawData.length, valid: 0, invalid: 0 };
 
                 if (type === 'feedbacks') {
+                    // Buscar seções de TODOS os ramos antes de validar
+                    const allSections = await fetchAllSectionsForImport();
+
                     // Create lookup map for fast validation
                     const industryMap = new Map();
                     industries.forEach(ind => {
                         const normName = normalizeString(ind.name);
-                        // Map normalized name to { id, originalName, sections: Set(normTitles) }
+                        const industrySections = allSections[ind.id] || allQuestions[ind.id] || [];
                         industryMap.set(normName, {
                             id: ind.id,
                             name: ind.name,
-                            sections: new Set(ind.sections?.map(s => normalizeString(s.title)) || [])
+                            sections: new Set(industrySections.map(s => normalizeString(s.title)))
                         });
                     });
 
