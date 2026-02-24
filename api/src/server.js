@@ -377,36 +377,59 @@ apiRouter.post('/questions/import-feedbacks', async (req, res) => {
     try {
         await connection.beginTransaction();
         let updatedCount = 0;
-        const notFoundIndustries = [];
-        const notFoundAreas = [];
+        const createdIndustries = [];
+        const createdAreas = [];
 
         // Buscar todos os ramos e seções de uma vez para comparação normalizada
-        const [allIndustries] = await connection.query('SELECT id, name FROM industries');
-        const [allSections] = await connection.query('SELECT id, industry_id, title FROM sections');
+        const [allIndustriesRaw] = await connection.query('SELECT id, name FROM industries');
+        const [allSectionsRaw] = await connection.query('SELECT id, industry_id, title FROM sections');
+
+        // Usar arrays mutáveis para adicionar criações feitas neste loop
+        const allIndustries = [...allIndustriesRaw];
+        const allSections = [...allSectionsRaw];
 
         for (const item of feedbackList) {
+            if (!item.industryName || !item.areaName) continue;
+
             const normIndustryName = normalizeForCompare(item.industryName);
 
-            // 1. Achar Indústria por nome normalizado (remove acentos e case)
-            const matchedIndustry = allIndustries.find(i => normalizeForCompare(i.name) === normIndustryName);
+            // 1. Achar ou CRIAR Indústria
+            let matchedIndustry = allIndustries.find(i => normalizeForCompare(i.name) === normIndustryName);
 
             if (!matchedIndustry) {
-                console.warn(`[import-feedbacks] Ramo não encontrado: "${item.industryName}" (norm: "${normIndustryName}")`);
-                notFoundIndustries.push(item.industryName);
-                continue;
+                const newId = uuidv4();
+                console.log(`[import-feedbacks] Criando ramo: "${item.industryName}"`);
+                await connection.execute(
+                    'INSERT INTO industries (id, name, active) VALUES (?, ?, 1)',
+                    [newId, item.industryName.trim()]
+                );
+                // Inserir pesos padrão
+                await connection.execute(
+                    'INSERT INTO industry_weights (id, industry_id, weight_a, weight_b, weight_c, weight_d) VALUES (?, ?, 0, 33, 66, 100)',
+                    [uuidv4(), newId]
+                );
+                matchedIndustry = { id: newId, name: item.industryName.trim() };
+                allIndustries.push(matchedIndustry);
+                createdIndustries.push(item.industryName.trim());
             }
 
             const normAreaName = normalizeForCompare(item.areaName);
 
-            // 2. Achar Seção por título normalizado dentro do ramo
-            const matchedSection = allSections.find(
+            // 2. Achar ou CRIAR Seção
+            let matchedSection = allSections.find(
                 s => s.industry_id === matchedIndustry.id && normalizeForCompare(s.title) === normAreaName
             );
 
             if (!matchedSection) {
-                console.warn(`[import-feedbacks] Área não encontrada: "${item.areaName}" no ramo "${item.industryName}" (norm: "${normAreaName}")`);
-                notFoundAreas.push(`${item.industryName} > ${item.areaName}`);
-                continue;
+                const newSectionId = uuidv4();
+                console.log(`[import-feedbacks] Criando área: "${item.areaName}" no ramo "${item.industryName}"`);
+                await connection.execute(
+                    'INSERT INTO sections (id, industry_id, title, `order`) VALUES (?, ?, ?, 0)',
+                    [newSectionId, matchedIndustry.id, item.areaName.trim()]
+                );
+                matchedSection = { id: newSectionId, industry_id: matchedIndustry.id, title: item.areaName.trim() };
+                allSections.push(matchedSection);
+                createdAreas.push(`${item.industryName} > ${item.areaName}`);
             }
 
             const sectionId = matchedSection.id;
@@ -428,8 +451,8 @@ apiRouter.post('/questions/import-feedbacks', async (req, res) => {
         }
 
         await connection.commit();
-        console.log(`[import-feedbacks] Concluído: ${updatedCount} atualizados, ${notFoundIndustries.length} ramos e ${notFoundAreas.length} áreas não encontradas.`);
-        res.json({ updatedCount, notFoundIndustries: [...new Set(notFoundIndustries)], notFoundAreas: [...new Set(notFoundAreas)] });
+        console.log(`[import-feedbacks] Concluído: ${updatedCount} feedbacks, ${createdIndustries.length} ramos criados, ${createdAreas.length} áreas criadas.`);
+        res.json({ updatedCount, createdIndustries, createdAreas });
     } catch (error) {
         if (connection) await connection.rollback();
         console.error('Erro no import de feedbacks:', error);

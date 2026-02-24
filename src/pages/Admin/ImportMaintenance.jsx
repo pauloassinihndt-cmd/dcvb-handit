@@ -407,20 +407,18 @@ const ImportMaintenance = () => {
                         const matchedInd = industryMap.get(normIndustry);
 
                         if (!matchedInd) {
-                            status = 'error';
-                            message = 'Ramo não encontrado';
+                            status = 'warning';
+                            message = 'Ramo e Área serão criados automaticamente';
                         } else if (!matchedInd.sections.has(normArea)) {
                             status = 'warning';
-                            message = 'Área não encontrada (Feedback será ignorado)';
-                            // Actually, if area doesn't exist, we can't attach feedback. So it IS an error for that row context.
-                            status = 'error';
+                            message = 'Área não existe e será criada automaticamente';
                         }
 
                         if (status === 'success') stats.valid++;
-                        else stats.invalid++;
+                        else stats.warning = (stats.warning || 0) + 1;
 
                         return {
-                            selected: status === 'success',
+                            selected: true, // sempre selecionado — ramos/areas inexistentes serão criados
                             originalRow: row,
                             display: {
                                 Ramo: rawIndustry,
