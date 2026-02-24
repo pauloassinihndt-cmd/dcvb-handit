@@ -29,8 +29,12 @@ CREATE TABLE IF NOT EXISTS industry_scoring_weights (
     option_b_weight INT DEFAULT 33,
     option_c_weight INT DEFAULT 66,
     option_d_weight INT DEFAULT 100,
+    score_mode VARCHAR(10) DEFAULT 'percent',  -- 'percent' ou 'points'
     CONSTRAINT fk_scoring_industry FOREIGN KEY (industry_id) REFERENCES industries(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- Migração: adicionar coluna score_mode se não existir
+ALTER TABLE industry_scoring_weights ADD COLUMN IF NOT EXISTS score_mode VARCHAR(10) DEFAULT 'percent';
 
 -- 4. TABELA DE ÁREAS (SEÇÕES)
 CREATE TABLE IF NOT EXISTS sections (

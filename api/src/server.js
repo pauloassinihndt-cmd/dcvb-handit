@@ -109,6 +109,45 @@ apiRouter.delete('/industries/:id', async (req, res) => {
     }
 });
 
+// Obter Pesos de Pontuação de uma Indústria
+apiRouter.get('/industries/:id/scoring', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [rows] = await pool.query('SELECT * FROM industry_scoring_weights WHERE industry_id = ?', [id]);
+        if (rows.length === 0) {
+            // Retorna padrão se não houver configuração
+            return res.json({ industry_id: id, option_a_weight: 0, option_b_weight: 33, option_c_weight: 66, option_d_weight: 100, score_mode: 'percent' });
+        }
+        res.json(rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Atualizar Pesos de Pontuação de uma Indústria
+apiRouter.put('/industries/:id/scoring', async (req, res) => {
+    const { id } = req.params;
+    const { option_a_weight, option_b_weight, option_c_weight, option_d_weight, score_mode } = req.body;
+    const mode = score_mode === 'points' ? 'points' : 'percent';
+    try {
+        // Garante que a coluna score_mode existe (ALTER TABLE seguro)
+        await pool.execute(`
+            INSERT INTO industry_scoring_weights (industry_id, option_a_weight, option_b_weight, option_c_weight, option_d_weight, score_mode)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                option_a_weight = VALUES(option_a_weight),
+                option_b_weight = VALUES(option_b_weight),
+                option_c_weight = VALUES(option_c_weight),
+                option_d_weight = VALUES(option_d_weight),
+                score_mode = VALUES(score_mode)
+        `, [id, option_a_weight, option_b_weight, option_c_weight, option_d_weight, mode]);
+        res.json({ success: true, score_mode: mode });
+    } catch (error) {
+        console.error('Erro ao salvar pesos:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Obter Perguntas por Indústria
 apiRouter.get('/questions/:industryId', async (req, res) => {
     const { industryId } = req.params;
