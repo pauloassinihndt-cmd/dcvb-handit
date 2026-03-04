@@ -7,12 +7,13 @@ const testConnection = async () => {
     console.log(`HOST: ${process.env.DB_HOST}`);
     console.log(`USER: ${process.env.DB_USER}`);
     console.log(`DB: ${process.env.DB_NAME}`);
+    console.log(`PASSWORD: ${(process.env.DB_PASSWORD || process.env.DB_PASS) ? 'Preenchida (' + ((process.env.DB_PASSWORD || process.env.DB_PASS).length) + ' caracteres)' : 'Vazia'}`);
 
     try {
         const connection = await mysql.createConnection({
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
+            password: process.env.DB_PASSWORD || process.env.DB_PASS,
             database: process.env.DB_NAME
         });
 
