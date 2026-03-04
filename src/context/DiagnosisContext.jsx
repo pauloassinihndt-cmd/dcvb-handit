@@ -363,7 +363,7 @@ export const DiagnosisProvider = ({ children }) => {
                         if (!res.ok) throw new Error(`Falha ao criar indústria: ${ind.name}`);
                     }
 
-                    // Re-fetch indústrias para ter os IDs reais sincronizados
+                    // Re-fetch indústrias para ter os IDs reais sincronizados e atualizar o estado global
                     const indRes = await fetch(`${API_URL}/industries`);
                     const allInds = await indRes.json();
                     setIndustries(allInds);
