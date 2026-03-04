@@ -1,5 +1,6 @@
-const mysql = require('mysql2/promise');
-require('dotenv').config();
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const testConnection = async () => {
     console.log('--- Testando Conexão com o Banco ---');
