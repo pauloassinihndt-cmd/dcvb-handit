@@ -64,11 +64,11 @@ apiRouter.post('/industries', async (req, res) => {
         }
 
         await connection.commit();
-        console.log('Indústria adicionada com sucesso!');
+        console.log(`[INDÚSTRIA] "${name}" adicionada com sucesso! ID: ${id}`);
         res.status(201).json({ id, name, active: 1, isFixed: false });
     } catch (error) {
         if (connection) await connection.rollback();
-        console.error('ERRO CRÍTICO AO ADICIONAR INDÚSTRIA:', error);
+        console.error(`[ERRO-INDÚSTRIA] Falha ao adicionar "${name}":`, error.message);
         res.status(500).json({ error: error.message, stack: error.stack });
     } finally {
         if (connection) connection.release();
@@ -358,11 +358,14 @@ apiRouter.put('/questions/:industryId', async (req, res) => {
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
+        console.log(`[IMPORT-PERGUNTAS] Iniciando atualização para Indústria: ${industryId}`);
+        console.log(`[IMPORT-PERGUNTAS] Seções a processar: ${sections.length}`);
 
         // 1. Limpar seções atuais (Cascade limpará perguntas, opções e feedbacks)
         await connection.execute('DELETE FROM sections WHERE industry_id = ?', [industryId]);
 
         // 2. Reinserir estrutura
+        let totalQuestions = 0;
         for (const [sIdx, section] of sections.entries()) {
             const sId = section.id && !section.id.startsWith('section-') ? section.id : uuidv4();
             await connection.execute(
@@ -382,6 +385,7 @@ apiRouter.put('/questions/:industryId', async (req, res) => {
             // Perguntas
             if (section.questions) {
                 for (const [qIdx, q] of section.questions.entries()) {
+                    totalQuestions++;
                     const qId = q.id && !q.id.startsWith('q-') ? q.id : uuidv4();
                     await connection.execute(
                         'INSERT INTO questions (id, section_id, text, order_index, disabled) VALUES (?, ?, ?, ?, ?)',
@@ -402,10 +406,11 @@ apiRouter.put('/questions/:industryId', async (req, res) => {
         }
 
         await connection.commit();
+        console.log(`[IMPORT-PERGUNTAS] Sucesso! ${sections.length} seções e ${totalQuestions} perguntas importadas.`);
         res.json({ message: 'Estrutura atualizada com sucesso' });
     } catch (error) {
         if (connection) await connection.rollback();
-        console.error('Erro ao salvar perguntas:', error);
+        console.error(`[IMPORT-PERGUNTAS-ERRO] Falha na indústria ${industryId}:`, error.message);
         res.status(500).json({ error: error.message });
     } finally {
         if (connection) connection.release();
@@ -423,6 +428,7 @@ const normalizeForCompare = (str) => {
 
 apiRouter.post('/questions/import-feedbacks', async (req, res) => {
     const feedbackList = req.body; // Array de { industryName, areaName, feedbacks }
+    console.log(`[IMPORT-FEEDBACKS] Iniciando importação em lote para ${feedbackList.length} itens.`);
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
