@@ -44,7 +44,7 @@ mysql -u dcvb_user -p dcvb_db < db/mysql_schema.sql
    cp .env.example .env
    nano .env (Coloque a senha do banco que voce configurou no passo 2)
 5. Inicie a API:
-   pm2 start src/server.js --name dcvb-backend
+   pm2 start src/server.js --name dcvb-api
 
 --------------------------------------------------------------------------------
 4. DEPLOY DO FRONTEND (WEB)
@@ -90,6 +90,6 @@ sudo systemctl restart nginx
 --------------------------------------------------------------------------------
 CHECKLIST FINAL:
 - O MySQL esta ligado?
-- O PM2 mostra 'dcvb-backend' como 'online'?
+- O PM2 mostra 'dcvb-api' como 'online'?
 - O Nginx esta apontando para os caminhos /var/www/dcvb/web e api?
 ================================================================================
