@@ -453,10 +453,10 @@ apiRouter.post('/questions/import-feedbacks', async (req, res) => {
                     'INSERT INTO industries (id, name, active) VALUES (?, ?, 1)',
                     [newId, item.industryName.trim()]
                 );
-                // Inserir pesos padrão
+                // Inserir pesos padrão (Tabela correta: industry_scoring_weights)
                 await connection.execute(
-                    'INSERT INTO industry_weights (id, industry_id, weight_a, weight_b, weight_c, weight_d) VALUES (?, ?, 0, 33, 66, 100)',
-                    [uuidv4(), newId]
+                    'INSERT INTO industry_scoring_weights (industry_id, option_a_weight, option_b_weight, option_c_weight, option_d_weight) VALUES (?, 0, 33, 66, 100)',
+                    [newId]
                 );
                 matchedIndustry = { id: newId, name: item.industryName.trim() };
                 allIndustries.push(matchedIndustry);
@@ -480,7 +480,7 @@ apiRouter.post('/questions/import-feedbacks', async (req, res) => {
                 const newSectionId = uuidv4();
                 console.log(`[import-feedbacks] Criando área: "${item.areaName}" no ramo "${item.industryName}"`);
                 await connection.execute(
-                    'INSERT INTO sections (id, industry_id, title, `order`) VALUES (?, ?, ?, 0)',
+                    'INSERT INTO sections (id, industry_id, title, order_index) VALUES (?, ?, ?, 0)',
                     [newSectionId, matchedIndustry.id, item.areaName.trim()]
                 );
                 matchedSection = { id: newSectionId, industry_id: matchedIndustry.id, title: item.areaName.trim() };
