@@ -532,6 +532,29 @@ apiRouter.post('/questions/duplicate', async (req, res) => {
                 continue;
             }
 
+            // --- DUPLICAÇÃO DE PERGUNTAS E OPÇÕES ---
+            // 1. Buscar perguntas da seção de origem
+            const [questions] = await connection.query('SELECT * FROM questions WHERE section_id = ?', [section.id]);
+
+            for (const q of questions) {
+                const newQuestionId = uuidv4();
+
+                // 2. Inserir a pergunta na nova seção (ou mesma se já existir e estivermos apenas populando)
+                await connection.execute(
+                    'INSERT INTO questions (id, section_id, text, order_index, disabled) VALUES (?, ?, ?, ?, ?)',
+                    [newQuestionId, targetSectionId, q.text, q.order_index, q.disabled]
+                );
+
+                // 3. Buscar e inserir opções para esta pergunta
+                const [options] = await connection.query('SELECT * FROM question_options WHERE question_id = ?', [q.id]);
+                for (const opt of options) {
+                    await connection.execute(
+                        'INSERT INTO question_options (question_id, text, order_index) VALUES (?, ?, ?)',
+                        [newQuestionId, opt.text, opt.order_index]
+                    );
+                }
+            }
+
             const [feedbacks] = await connection.query('SELECT * FROM section_feedbacks WHERE section_id = ?', [section.id]);
             if (feedbacks.length > 0) {
                 const f = feedbacks[0];
