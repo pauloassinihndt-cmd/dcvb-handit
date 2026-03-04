@@ -12,10 +12,10 @@ dotenv.config({ path: join(__dirname, '../../.env') });
 console.log(`[DB] Conectando como usuário: ${process.env.DB_USER} | Host: ${process.env.DB_HOST} | DB: ${process.env.DB_NAME} | Senha lida: ${process.env.DB_PASSWORD?.length || 0} caracteres`);
 
 const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST || '127.0.0.1',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || process.env.DB_PASS || '',
-    database: process.env.DB_NAME || 'dcvb-db',
+    database: process.env.DB_NAME || 'dcvb_db',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
