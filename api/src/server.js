@@ -101,6 +101,11 @@ apiRouter.patch('/industries/:id/toggle', async (req, res) => {
 // Excluir Indústria
 apiRouter.delete('/industries/:id', async (req, res) => {
     const { id } = req.params;
+
+    // Trava para o Ramo Geral
+    if (id === 'default-geral') {
+        return res.status(403).json({ error: 'O Ramo Geral é protegido e não pode ser removido.' });
+    }
     try {
         await pool.execute('DELETE FROM industries WHERE id = ?', [id]);
         res.json({ message: 'Indústria removida' });
@@ -343,6 +348,12 @@ apiRouter.post('/history/delete-many', async (req, res) => {
 // Atualizar Estrutura de Perguntas de uma Indústria
 apiRouter.put('/questions/:industryId', async (req, res) => {
     const { industryId } = req.params;
+
+    // Trava para o Ramo Geral
+    if (industryId === 'default-geral') {
+        return res.status(403).json({ error: 'O Ramo Geral é protegido e suas perguntas não podem ser alteradas via painel administrativo.' });
+    }
+
     const sections = req.body;
     const connection = await pool.getConnection();
     try {
@@ -452,6 +463,12 @@ apiRouter.post('/questions/import-feedbacks', async (req, res) => {
                 createdIndustries.push(item.industryName.trim());
             }
 
+            // Trava para o Ramo Geral no import de feedbacks
+            if (matchedIndustry.id === 'default-geral') {
+                console.warn(`[import-feedbacks] Tentativa de alterar feedback do Ramo Geral ignorada.`);
+                continue;
+            }
+
             const normAreaName = normalizeForCompare(item.areaName);
 
             // 2. Achar ou CRIAR Seção
@@ -504,6 +521,12 @@ apiRouter.post('/questions/import-feedbacks', async (req, res) => {
 // Duplicar Estrutura ou Feedbacks entre Ramos
 apiRouter.post('/questions/duplicate', async (req, res) => {
     const { source, target } = req.body;
+
+    // Trava para o Ramo Geral
+    if (target.industryId === 'default-geral') {
+        return res.status(403).json({ error: 'Não é permitido alterar a estrutura do Ramo Geral via duplicação.' });
+    }
+
     const connection = await pool.getConnection();
     try {
         await connection.beginTransaction();
