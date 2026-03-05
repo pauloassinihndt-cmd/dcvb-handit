@@ -64,11 +64,11 @@ apiRouter.post('/industries', async (req, res) => {
         }
 
         await connection.commit();
-        console.log(`[INDÚSTRIA] "${name}" adicionada com sucesso! ID: ${id}`);
+        console.log(`[INDUSTRIA] "${name}" adicionada com sucesso! ID: ${id}`);
         res.status(201).json({ id, name, active: 1, isFixed: false });
     } catch (error) {
         if (connection) await connection.rollback();
-        console.error(`[ERRO-INDÚSTRIA] Falha ao adicionar "${name}":`, error.message);
+        console.error(`[ERRO-INDUSTRIA] Falha ao adicionar "${name}":`, error.message);
         res.status(500).json({ error: error.message, stack: error.stack });
     } finally {
         if (connection) connection.release();
