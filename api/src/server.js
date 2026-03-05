@@ -15,6 +15,17 @@ app.use(express.json());
 // Criar roteador para API para suportar o prefixo /api usado no frontend e nginx
 const apiRouter = express.Router();
 
+// --- MIGRATION DE BANCO (executada uma vez no startup) ---
+async function runMigrations() {
+    try {
+        await pool.execute(`ALTER TABLE diagnosis_answers ADD COLUMN IF NOT EXISTS question_text_snapshot TEXT`);
+        await pool.execute(`ALTER TABLE diagnosis_answers ADD COLUMN IF NOT EXISTS answer_text_snapshot VARCHAR(500)`);
+        console.log('[MIGRATION] Colunas de snapshot verificadas/criadas com sucesso.');
+    } catch (e) {
+        console.warn('[MIGRATION] Aviso ao verificar colunas de snapshot:', e.message);
+    }
+}
+
 // Rota de Health Check
 apiRouter.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -219,26 +230,20 @@ apiRouter.post('/diagnoses', async (req, res) => {
         );
 
         // 2. Inserir Respostas com Snapshot de Texto (para preservar histórico)
-        // Garante que as colunas de snapshot existam (migration segura)
-        try {
-            await connection.execute(`ALTER TABLE diagnosis_answers ADD COLUMN IF NOT EXISTS question_text_snapshot TEXT`);
-            await connection.execute(`ALTER TABLE diagnosis_answers ADD COLUMN IF NOT EXISTS answer_text_snapshot VARCHAR(500)`);
-        } catch (e) { /* Colunas já existem */ }
-
         for (const [qId, optIdx] of Object.entries(answers)) {
             // Busca textos no banco para garantir precisão
-            const [[question]] = await connection.query('SELECT text FROM questions WHERE id = ?', [qId]);
-            const [[option]] = await connection.query(
+            const [qRows] = await connection.query('SELECT text FROM questions WHERE id = ?', [qId]);
+            const [oRows] = await connection.query(
                 'SELECT text FROM question_options WHERE question_id = ? ORDER BY order_index ASC LIMIT 1 OFFSET ?',
-                [qId, optIdx]
+                [qId, Number(optIdx)]
             );
 
-            const questionText = question?.text || null;
-            const answerText = option?.text || null;
+            const questionText = qRows[0]?.text || null;
+            const answerText = oRows[0]?.text || null;
 
             await connection.execute(
                 'INSERT INTO diagnosis_answers (diagnosis_id, question_id, selected_option_index, score_at_time, question_text_snapshot, answer_text_snapshot) VALUES (?, ?, ?, ?, ?, ?)',
-                [id, qId, optIdx, 0, questionText, answerText]
+                [id, qId, Number(optIdx), 0, questionText, answerText]
             );
         }
 
@@ -692,6 +697,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Erro interno do servidor', detail: err.message });
 });
 
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`Backend DCVB rodando em http://localhost:${port}`);
+    await runMigrations();
 });
