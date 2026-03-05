@@ -218,11 +218,27 @@ apiRouter.post('/diagnoses', async (req, res) => {
             ]
         );
 
-        // 2. Inserir Respostas
+        // 2. Inserir Respostas com Snapshot de Texto (para preservar histórico)
+        // Garante que as colunas de snapshot existam (migration segura)
+        try {
+            await connection.execute(`ALTER TABLE diagnosis_answers ADD COLUMN IF NOT EXISTS question_text_snapshot TEXT`);
+            await connection.execute(`ALTER TABLE diagnosis_answers ADD COLUMN IF NOT EXISTS answer_text_snapshot VARCHAR(500)`);
+        } catch (e) { /* Colunas já existem */ }
+
         for (const [qId, optIdx] of Object.entries(answers)) {
+            // Busca textos no banco para garantir precisão
+            const [[question]] = await connection.query('SELECT text FROM questions WHERE id = ?', [qId]);
+            const [[option]] = await connection.query(
+                'SELECT text FROM question_options WHERE question_id = ? ORDER BY order_index ASC LIMIT 1 OFFSET ?',
+                [qId, optIdx]
+            );
+
+            const questionText = question?.text || null;
+            const answerText = option?.text || null;
+
             await connection.execute(
-                'INSERT INTO diagnosis_answers (diagnosis_id, question_id, selected_option_index, score_at_time) VALUES (?, ?, ?, ?)',
-                [id, qId, optIdx, 0] // score_at_time pode ser calculado aqui se necessário
+                'INSERT INTO diagnosis_answers (diagnosis_id, question_id, selected_option_index, score_at_time, question_text_snapshot, answer_text_snapshot) VALUES (?, ?, ?, ?, ?, ?)',
+                [id, qId, optIdx, 0, questionText, answerText]
             );
         }
 
@@ -235,6 +251,7 @@ apiRouter.post('/diagnoses', async (req, res) => {
         }
 
         await connection.commit();
+        console.log(`[DIAGNOSTICO] Salvo com sucesso. ID: ${id} | Empresa: ${userInfo.empresa} | Score: ${total_score}%`);
         res.status(201).json({ message: 'Diagnóstico salvo com sucesso', id });
     } catch (error) {
         if (connection) await connection.rollback();
@@ -289,12 +306,20 @@ apiRouter.get('/history/:id/details', async (req, res) => {
 
         // Mapear respostas para o formato { questionId: optionIndex }
         const mappedAnswers = {};
+        const answersSnapshot = []; // Lista detalhada com textos preservados
         answers.forEach(ans => {
             mappedAnswers[ans.question_id] = ans.selected_option_index;
+            answersSnapshot.push({
+                questionId: ans.question_id,
+                selectedOptionIndex: ans.selected_option_index,
+                questionText: ans.question_text_snapshot || null,
+                answerText: ans.answer_text_snapshot || null,
+            });
         });
 
         res.json({
             answers: mappedAnswers,
+            answersSnapshot, // Snapshot completo com textos do momento do diagnóstico
             sectionScores: results.map(r => ({
                 id: r.section_id,
                 title: r.section_title,

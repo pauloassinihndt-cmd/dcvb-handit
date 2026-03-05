@@ -542,41 +542,97 @@ const ETNReport = () => {
                 <h2 className="text-2xl font-bold border-t border-border-color pt-8">Resumo das Perguntas e Respostas</h2>
 
                 <div className="grid gap-8">
-                    {questionsSource.map((section) => (
-                        <div key={section.id} className="bg-white rounded-xl border border-border-color overflow-hidden">
+                    {/* Modo Histórico: usa snapshots de texto salvos no banco */}
+                    {isHistoryView && historyItem?.answersSnapshot?.length > 0 ? (
+                        (() => {
+                            // Agrupa snapshots por seção (usando sectionScores como referência de ordem)
+                            const snapshotMap = new Map(
+                                (historyItem.answersSnapshot || []).map(s => [s.questionId, s])
+                            );
+                            return sectionScores.map(section => (
+                                <div key={section.id} className="bg-white rounded-xl border border-border-color overflow-hidden">
+                                    <div className="bg-bg-secondary px-6 py-4 border-b border-border-color">
+                                        <h3 className="font-bold text-lg">{section.title}</h3>
+                                    </div>
+                                    <div className="divide-y divide-border-color">
+                                        {(historyItem.answersSnapshot || [])
+                                            .filter(() => true) // todos os snapshots são exibidos agrupados por seção via questionsSource
+                                            .map((snap, idx) => {
+                                                if (!snap.questionText) return null;
+                                                return null; // será exibido abaixo
+                                            })}
+                                    </div>
+                                </div>
+                            ));
+                        })()
+                    ) : null}
+
+                    {/* Modo Histórico com snapshots: exibe lista plana agrupada */}
+                    {isHistoryView && historyItem?.answersSnapshot?.length > 0 ? (
+                        <div className="bg-white rounded-xl border border-border-color overflow-hidden">
                             <div className="bg-bg-secondary px-6 py-4 border-b border-border-color">
-                                <h3 className="font-bold text-lg">{section.title}</h3>
+                                <h3 className="font-bold text-lg flex items-center gap-2">
+                                    📋 Respostas registradas no momento do diagnóstico
+                                </h3>
                             </div>
                             <div className="divide-y divide-border-color">
-                                {section.questions.map((q, idx) => {
-                                    const answerIdx = answers[q.id];
-                                    const answerText = q.options[answerIdx];
-                                    const points = getPoints(answerIdx);
-
-                                    return (
-                                        <div key={q.id} className="p-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                                {(historyItem.answersSnapshot || []).map((snap, idx) => (
+                                    snap.questionText ? (
+                                        <div key={snap.questionId} className="p-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                                             <div className="flex-1">
                                                 <div className="flex gap-3 mb-2">
                                                     <span className="font-bold text-text-secondary w-6 h-6 flex items-center justify-center bg-bg-tertiary rounded-full text-xs flex-shrink-0">{idx + 1}</span>
-                                                    <p className="font-medium text-text-primary">{q.text}</p>
+                                                    <p className="font-medium text-text-primary">{snap.questionText}</p>
                                                 </div>
                                                 <div className="pl-9">
                                                     <p className="text-sm text-text-secondary">
-                                                        Resposta: <span className="font-bold text-primary">{answerText || 'Não respondida'}</span>
+                                                        Resposta: <span className="font-bold text-primary">{snap.answerText || 'Não registrada'}</span>
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="pl-9 md:pl-0 flex-shrink-0">
-                                                <span className={`text-xs font-bold px-2 py-1 rounded ${points < 50 ? 'bg-accent-warning/10 text-accent-warning' : 'bg-accent-success/10 text-accent-success'}`}>
-                                                    {points}%
-                                                </span>
-                                            </div>
                                         </div>
-                                    );
-                                })}
+                                    ) : null
+                                ))}
                             </div>
                         </div>
-                    ))}
+                    ) : (
+                        /* Modo Diagnóstico Atual: usa perguntas ao vivo do contexto */
+                        questionsSource.map((section) => (
+                            <div key={section.id} className="bg-white rounded-xl border border-border-color overflow-hidden">
+                                <div className="bg-bg-secondary px-6 py-4 border-b border-border-color">
+                                    <h3 className="font-bold text-lg">{section.title}</h3>
+                                </div>
+                                <div className="divide-y divide-border-color">
+                                    {section.questions.map((q, idx) => {
+                                        const answerIdx = answers[q.id];
+                                        const answerText = q.options[answerIdx];
+                                        const points = getPoints(answerIdx);
+
+                                        return (
+                                            <div key={q.id} className="p-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                                                <div className="flex-1">
+                                                    <div className="flex gap-3 mb-2">
+                                                        <span className="font-bold text-text-secondary w-6 h-6 flex items-center justify-center bg-bg-tertiary rounded-full text-xs flex-shrink-0">{idx + 1}</span>
+                                                        <p className="font-medium text-text-primary">{q.text}</p>
+                                                    </div>
+                                                    <div className="pl-9">
+                                                        <p className="text-sm text-text-secondary">
+                                                            Resposta: <span className="font-bold text-primary">{answerText || 'Não respondida'}</span>
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="pl-9 md:pl-0 flex-shrink-0">
+                                                    <span className={`text-xs font-bold px-2 py-1 rounded ${points < 50 ? 'bg-accent-warning/10 text-accent-warning' : 'bg-accent-success/10 text-accent-success'}`}>
+                                                        {points}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
