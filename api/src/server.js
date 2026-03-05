@@ -18,11 +18,34 @@ const apiRouter = express.Router();
 // --- MIGRATION DE BANCO (executada uma vez no startup) ---
 async function runMigrations() {
     try {
-        await pool.execute(`ALTER TABLE diagnosis_answers ADD COLUMN IF NOT EXISTS question_text_snapshot TEXT`);
-        await pool.execute(`ALTER TABLE diagnosis_answers ADD COLUMN IF NOT EXISTS answer_text_snapshot VARCHAR(500)`);
-        console.log('[MIGRATION] Colunas de snapshot verificadas/criadas com sucesso.');
+        const dbName = process.env.DB_NAME || 'dcvb-db';
+        const table = 'diagnosis_answers';
+
+        // Verificar e adicionar coluna question_text_snapshot
+        const [colQ] = await pool.execute(
+            `SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'question_text_snapshot'`,
+            [dbName, table]
+        );
+        if (colQ[0].cnt === 0) {
+            await pool.execute(`ALTER TABLE ${table} ADD COLUMN question_text_snapshot TEXT`);
+            console.log('[MIGRATION] Coluna question_text_snapshot criada.');
+        }
+
+        // Verificar e adicionar coluna answer_text_snapshot
+        const [colA] = await pool.execute(
+            `SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.COLUMNS 
+             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = 'answer_text_snapshot'`,
+            [dbName, table]
+        );
+        if (colA[0].cnt === 0) {
+            await pool.execute(`ALTER TABLE ${table} ADD COLUMN answer_text_snapshot VARCHAR(500)`);
+            console.log('[MIGRATION] Coluna answer_text_snapshot criada.');
+        }
+
+        console.log('[MIGRATION] Verificacao de colunas de snapshot concluida.');
     } catch (e) {
-        console.warn('[MIGRATION] Aviso ao verificar colunas de snapshot:', e.message);
+        console.warn('[MIGRATION] Erro na migration de snapshot:', e.message);
     }
 }
 
