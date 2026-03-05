@@ -104,11 +104,17 @@ const ImportMaintenance = () => {
         e.preventDefault();
         setIsDraggingQuestions(false);
         const droppedFile = e.dataTransfer.files[0];
-        if (droppedFile) processFile(droppedFile, 'questions');
+        if (droppedFile) {
+            setFileQuestions(droppedFile);
+            processFile(droppedFile, 'questions');
+        }
     };
     const handleFileSelectQuestions = (e) => {
         const selectedFile = e.target.files[0];
-        if (selectedFile) processFile(selectedFile, 'questions');
+        if (selectedFile) {
+            setFileQuestions(selectedFile);
+            processFile(selectedFile, 'questions');
+        }
     };
     const handleDownloadTemplateQuestions = () => {
         const csvContent = "data:text/csv;charset=utf-8,Ramo de Atividade,Area,Pergunta,Opcao A,Opcao B,Opcao C,Opcao D\nExemplo Ramo,Exemplo Area,Exemplo Pergunta,Texto A,Texto B,Texto C,Texto D";
@@ -227,11 +233,18 @@ const ImportMaintenance = () => {
                     });
                 }
 
+                // As chaves do row estão normalizadas (lowercase, sem acento) pelo parseCSV
+                // Ex: 'Opcao A' vira 'opcao a', 'Opção A' também vira 'opcao a'
+                const optAKey = keys.find(k => k.includes('opcao a') || k === 'opcao a') || 'opcao a';
+                const optBKey = keys.find(k => k.includes('opcao b') || k === 'opcao b') || 'opcao b';
+                const optCKey = keys.find(k => k.includes('opcao c') || k === 'opcao c') || 'opcao c';
+                const optDKey = keys.find(k => k.includes('opcao d') || k === 'opcao d') || 'opcao d';
+
                 const options = [
-                    row['Opcao A'] || row['Opção A'] || 'Opção A',
-                    row['Opcao B'] || row['Opção B'] || 'Opção B',
-                    row['Opcao C'] || row['Opção C'] || 'Opção C',
-                    row['Opcao D'] || row['Opção D'] || 'Opção D'
+                    row[optAKey] || 'Opção A',
+                    row[optBKey] || 'Opção B',
+                    row[optCKey] || 'Opção C',
+                    row[optDKey] || 'Opção D'
                 ];
 
                 industryData.sectionsMap.get(area).questions.push({
@@ -466,10 +479,9 @@ const ImportMaintenance = () => {
         if (selectedData.length === 0) return;
 
         if (type === 'questions') {
-            // Re-trigger the import logic with ONLY selected data
-            handleImportQuestions(selectedData);
+            // Para perguntas: chama executeImportQuestions diretamente, evitando duplo modal
+            executeImportQuestions(selectedData);
         } else {
-            // Re-trigger the import logic with ONLY selected data
             handleImportFeedbacks(selectedData);
         }
         setPreviewModal({ isOpen: false, data: [], file: null, type: null, totalRows: 0 });
