@@ -56,13 +56,14 @@ apiRouter.get('/health', (req, res) => {
 
 // --- ROTAS DO SISTEMA ---
 
-// Listar Indústrias
+// Listar Indústrias (apenas ativas - usada no formulário do usuário)
 apiRouter.get('/industries', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM industries WHERE active = 1 ORDER BY created_at ASC');
         const mappedRows = Array.isArray(rows) ? rows.map(row => ({
             ...row,
-            isFixed: row.is_fixed === 1 || row.is_fixed === true
+            isFixed: row.is_fixed === 1 || row.is_fixed === true,
+            active: true // Como filtramos por active = 1, todos aqui são true
         })) : [];
         res.json(mappedRows);
     } catch (error) {
@@ -70,6 +71,23 @@ apiRouter.get('/industries', async (req, res) => {
         res.status(500).json([]); // Retorna array vazio em caso de erro para não quebrar o frontend
     }
 });
+
+// Listar TODAS as Indústrias (ativas e inativas - usada pelo painel admin)
+apiRouter.get('/industries/all', async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM industries ORDER BY created_at ASC');
+        const mappedRows = Array.isArray(rows) ? rows.map(row => ({
+            ...row,
+            isFixed: row.is_fixed === 1 || row.is_fixed === true,
+            active: row.active === 1 || row.active === true
+        })) : [];
+        res.json(mappedRows);
+    } catch (error) {
+        console.error('Database error:', error);
+        res.status(500).json([]);
+    }
+});
+
 
 // Adicionar Nova Indústria
 apiRouter.post('/industries', async (req, res) => {
@@ -401,12 +419,6 @@ apiRouter.post('/history/delete-many', async (req, res) => {
 // Atualizar Estrutura de Perguntas de uma Indústria
 apiRouter.put('/questions/:industryId', async (req, res) => {
     const { industryId } = req.params;
-
-    // Trava para o Ramo Geral
-    if (industryId === 'default-geral') {
-        return res.status(403).json({ error: 'O Ramo Geral é protegido e suas perguntas não podem ser alteradas via painel administrativo.' });
-    }
-
     const sections = req.body;
     const connection = await pool.getConnection();
     try {

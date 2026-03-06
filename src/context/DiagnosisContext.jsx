@@ -231,6 +231,25 @@ export const DiagnosisProvider = ({ children }) => {
         }
     };
 
+    // Busca TODOS os ramos (ativos e inativos) - usado pelo painel admin
+    const fetchAllIndustries = async () => {
+        try {
+            const res = await fetch(`${API_URL}/industries/all`);
+            const data = await res.json();
+            const mapped = Array.isArray(data) ? data.map(ind => ({
+                ...ind,
+                isFixed: ind.isFixed !== undefined ? ind.isFixed : (ind.is_fixed === 1 || ind.is_fixed === true),
+                active: ind.active === 1 || ind.active === true
+            })) : [];
+            setIndustries(mapped);
+            return mapped;
+        } catch (error) {
+            console.error('Erro ao buscar todos os ramos:', error);
+            return [];
+        }
+    };
+
+
     const updateQuestions = async (updatedSections) => {
         try {
             const response = await fetch(`${API_URL}/questions/${currentIndustryId}`, {
@@ -309,6 +328,7 @@ export const DiagnosisProvider = ({ children }) => {
             updateIndustry,
             deleteIndustry,
             toggleIndustryStatus,
+            fetchAllIndustries,
             fetchAllSectionsForImport,
             scoringConfig: { 'default-geral': [0, 33, 66, 100] },
             updateScoringConfig: () => { },
@@ -383,7 +403,10 @@ export const DiagnosisProvider = ({ children }) => {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(sections)
                         });
-                        if (!qRes.ok) console.warn(`Falha ao importar perguntas para indústria ${targetId}`);
+                        if (!qRes.ok) {
+                            const errData = await qRes.json().catch(() => ({}));
+                            throw new Error(`Falha ao importar perguntas para o ramo ${targetId}: ${errData.error || qRes.status}`);
+                        }
                     }
                     return true;
                 } catch (error) {

@@ -1,12 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDiagnosis } from '../../context/DiagnosisContext';
-import { Plus, Trash2, Edit2, Archive, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Eye, EyeOff, CheckCircle } from 'lucide-react';
 
 const IndustryMaintenance = () => {
-    const { industries, addIndustry, updateIndustry, deleteIndustry, toggleIndustryStatus } = useDiagnosis();
+    const { industries, addIndustry, updateIndustry, deleteIndustry, toggleIndustryStatus, fetchAllIndustries } = useDiagnosis();
     const [newIndustryName, setNewIndustryName] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [editName, setEditName] = useState('');
+
+    // Ao montar a tela do admin, busca TODOS os ramos (ativos e inativos)
+    useEffect(() => {
+        fetchAllIndustries();
+    }, []);
 
     const handleAdd = async (e) => {
         e.preventDefault();
@@ -14,8 +19,16 @@ const IndustryMaintenance = () => {
             const success = await addIndustry(newIndustryName.trim());
             if (success) {
                 setNewIndustryName('');
+                // Recarrega todos para manter inativas visíveis
+                await fetchAllIndustries();
             }
         }
+    };
+
+    const handleToggle = async (id) => {
+        await toggleIndustryStatus(id);
+        // Recarrega todos para manter inativas visíveis
+        await fetchAllIndustries();
     };
 
     const startEditing = (industry) => {
@@ -46,19 +59,47 @@ const IndustryMaintenance = () => {
         });
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (deleteModal.industryId) {
-            deleteIndustry(deleteModal.industryId);
+            await deleteIndustry(deleteModal.industryId);
             setDeleteModal({ isOpen: false, industryId: null, industryName: '' });
+            await fetchAllIndustries();
         }
     };
+
+    const activeCount = industries.filter(i => i.active).length;
+    const hiddenCount = industries.filter(i => !i.active).length;
 
     return (
         <div className="max-w-4xl mx-auto pb-20">
             <header className="mb-8">
                 <h1 className="text-3xl font-bold text-text-primary mb-2">Ramos de Atividade</h1>
-                <p className="text-text-secondary">Gerencie os ramos de atividade disponíveis para seleção.</p>
+                <p className="text-text-secondary">
+                    Gerencie os ramos disponíveis no formulário. Ramos <strong>ocultos</strong> não aparecem para o usuário, mas continuam associados aos diagnósticos históricos.
+                </p>
             </header>
+
+            {/* Resumo */}
+            <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="bg-white rounded-xl border border-border-color p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-accent-success/10 flex items-center justify-center">
+                        <Eye size={20} className="text-accent-success" />
+                    </div>
+                    <div>
+                        <p className="text-2xl font-bold text-text-primary">{activeCount}</p>
+                        <p className="text-sm text-text-secondary">Visíveis no formulário</p>
+                    </div>
+                </div>
+                <div className="bg-white rounded-xl border border-border-color p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-bg-tertiary flex items-center justify-center">
+                        <EyeOff size={20} className="text-text-secondary" />
+                    </div>
+                    <div>
+                        <p className="text-2xl font-bold text-text-primary">{hiddenCount}</p>
+                        <p className="text-sm text-text-secondary">Ocultos do formulário</p>
+                    </div>
+                </div>
+            </div>
 
             {/* Add New Industry */}
             <div className="bg-white p-6 rounded-xl border border-border-color shadow-sm mb-8">
@@ -96,73 +137,107 @@ const IndustryMaintenance = () => {
                     </div>
                 ) : (
                     <div className="divide-y divide-border-color">
-                        {industries.map((industry) => (
-                            <div key={industry.id} className="p-4 flex items-center justify-between hover:bg-bg-secondary/50 transition-colors group">
-                                {editingId === industry.id ? (
-                                    <div className="flex-1 flex gap-3 mr-4">
-                                        <input
-                                            type="text"
-                                            value={editName}
-                                            onChange={(e) => setEditName(e.target.value)}
-                                            className="flex-1 bg-white border border-primary rounded-lg px-3 py-2 outline-none"
-                                            autoFocus
-                                        />
-                                        <button
-                                            onClick={handleUpdate}
-                                            className="px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm"
-                                        >
-                                            Salvar
-                                        </button>
-                                        <button
-                                            onClick={cancelEdit}
-                                            className="px-4 py-2 bg-bg-tertiary text-text-secondary rounded-lg font-bold text-sm hover:bg-bg-tertiary/80"
-                                        >
-                                            Cancelar
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-3">
-                                        <span className={`font-medium ${!industry.active ? 'text-text-secondary line-through opacity-60' : 'text-text-primary'}`}>
-                                            {industry.name}
-                                        </span>
-                                        {!industry.active && (
-                                            <span className="text-xs bg-bg-tertiary text-text-secondary px-2 py-1 rounded">Inativo</span>
-                                        )}
-                                    </div>
-                                )}
+                        {industries.map((industry) => {
+                            const isVisible = industry.active === true || industry.active === 1;
+                            return (
+                                <div
+                                    key={industry.id}
+                                    className={`p-4 flex items-center justify-between transition-colors ${isVisible ? 'hover:bg-bg-secondary/30' : 'bg-bg-secondary/60 opacity-70'}`}
+                                >
+                                    {editingId === industry.id ? (
+                                        <div className="flex-1 flex gap-3 mr-4">
+                                            <input
+                                                type="text"
+                                                value={editName}
+                                                onChange={(e) => setEditName(e.target.value)}
+                                                className="flex-1 bg-white border border-primary rounded-lg px-3 py-2 outline-none"
+                                                autoFocus
+                                            />
+                                            <button
+                                                onClick={handleUpdate}
+                                                className="px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm"
+                                            >
+                                                Salvar
+                                            </button>
+                                            <button
+                                                onClick={cancelEdit}
+                                                className="px-4 py-2 bg-bg-tertiary text-text-secondary rounded-lg font-bold text-sm hover:bg-bg-tertiary/80"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-3">
+                                            {/* Indicador visual de visibilidade */}
+                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isVisible ? 'bg-accent-success' : 'bg-text-secondary/40'}`} />
+                                            <span className={`font-medium ${!isVisible ? 'text-text-secondary line-through' : 'text-text-primary'}`}>
+                                                {industry.name}
+                                            </span>
+                                            {industry.isFixed && (
+                                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-medium border border-primary/20">Padrão</span>
+                                            )}
+                                            {!isVisible && (
+                                                <span className="text-xs bg-bg-tertiary text-text-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                                                    <EyeOff size={11} />
+                                                    Oculto no formulário
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
 
-                                {editingId !== industry.id && !industry.isFixed && (
-                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={() => toggleIndustryStatus(industry.id)}
-                                            className={`p-2 rounded hover:bg-bg-tertiary transition-colors ${industry.active ? 'text-text-secondary hover:text-accent-warning' : 'text-accent-success hover:bg-accent-success/10'}`}
-                                            title={industry.active ? "Desativar" : "Ativar"}
-                                        >
-                                            {industry.active ? <Archive size={18} /> : <CheckCircle size={18} />}
-                                        </button>
-                                        <button
-                                            onClick={() => startEditing(industry)}
-                                            className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded transition-colors"
-                                            title="Editar"
-                                        >
-                                            <Edit2 size={18} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteClick(industry)}
-                                            className="p-2 text-text-secondary hover:text-accent-danger hover:bg-accent-danger/10 rounded transition-colors"
-                                            title="Excluir"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
-                                )}
-                                {editingId !== industry.id && industry.isFixed && (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded font-medium border border-primary/20">Padrão</span>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                                    {editingId !== industry.id && (
+                                        <div className="flex items-center gap-2">
+                                            {/* Botão de visibilidade - sempre visível */}
+                                            {!industry.isFixed && (
+                                                <button
+                                                    onClick={() => handleToggle(industry.id)}
+                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${isVisible
+                                                            ? 'text-text-secondary border-border-color hover:bg-accent-warning/10 hover:text-accent-warning hover:border-accent-warning/30'
+                                                            : 'text-accent-success border-accent-success/30 bg-accent-success/5 hover:bg-accent-success/10'
+                                                        }`}
+                                                    title={isVisible ? 'Ocultar no formulário' : 'Tornar visível no formulário'}
+                                                >
+                                                    {isVisible ? (
+                                                        <>
+                                                            <EyeOff size={15} />
+                                                            <span className="hidden sm:inline">Ocultar</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Eye size={15} />
+                                                            <span className="hidden sm:inline">Mostrar</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            )}
+                                            {/* Editar */}
+                                            {!industry.isFixed && (
+                                                <button
+                                                    onClick={() => startEditing(industry)}
+                                                    className="p-2 text-text-secondary hover:text-primary hover:bg-primary/10 rounded transition-colors"
+                                                    title="Editar nome"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                            )}
+                                            {/* Excluir */}
+                                            {!industry.isFixed && (
+                                                <button
+                                                    onClick={() => handleDeleteClick(industry)}
+                                                    className="p-2 text-text-secondary hover:text-accent-danger hover:bg-accent-danger/10 rounded transition-colors"
+                                                    title="Excluir"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
+                                            {industry.isFixed && (
+                                                <span className="text-xs text-text-secondary italic px-2">Protegido</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>
