@@ -165,7 +165,7 @@ const Diagnosis = () => {
                                         onChange={e => updateUserInfo('ramoAtividade', e.target.value)}
                                     >
                                         <option value="">Selecione</option>
-                                        {industries.filter(i => i.active).map(industry => (
+                                        {industries.filter(i => i.active && i.name !== 'Geral').map(industry => (
                                             <option key={industry.id} value={industry.name}>
                                                 {industry.name}
                                             </option>
