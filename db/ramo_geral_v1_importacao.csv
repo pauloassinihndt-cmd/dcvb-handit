@@ -1,0 +1,36 @@
+Ramo de Atividade;Area;Pergunta;Opcao A;Opcao B;Opcao C;Opcao D
+Geral;Gerais;Qual é a percepção geral sobre o processo orçamentário na empresa?;Caótico e manual;Organizado mas desconectado;Integrado e fluido;Altamente estratégico e automatizado
+Geral;Gerais;Quanto tempo a empresa leva para fechar o ciclo orçamentário?;Mais de 4 meses;2 a 4 meses;1 a 2 meses;Menos de 1 mês
+Geral;Gerais;Qual o nível de confiança nos dados orçados?;Baixo;Médio;Alto;Total
+Geral;Gerais;Com que frequência o orçamento é revisado?;Nunca;Anualmente;Semestralmente;Mensalmente ou Trimestralmente
+Geral;Gerais;Qual a principal ferramenta utilizada?;Papel e Planilhas manuais;Planilhas complexas com macros;ERP básico;Sistema de gestão orçamentária dedicado (EPM/CPM)
+Geral;Gerais;Como é o envolvimento dos gestores no processo?;Nenhum;Baixo ou Forçado;Médio/Colaborativo;Alto/Donos do número
+Geral;Controladoria FP&A;A controladoria atua mais como?;Compiladora de dados;Auditora de números;Parceira de negócios;Estratega do negócio
+Geral;Controladoria FP&A;Como é feito o DRE Orçado?;Não é feito;Manual em Excel;Parcialmente automatizado;Totalmente integrado ao realizado
+Geral;Controladoria FP&A;Existe projeção de Fluxo de Caixa indireto?;Não;Sim - manual;Sim - automatizado;Sim com cenários em tempo real
+Geral;Controladoria FP&A;O Balanço Patrimonial é projetado?;Não;Raramente;Sim mas desconectado;Sim integrado ao DRE e Caixa
+Geral;Controladoria FP&A;Qual o nível de detalhe das despesas?;Conta contábil apenas;Centro de Custo;Centro de Custo + Projeto/Atividade;Multidimensional (CC, Projeto, Produto, etc)
+Geral;Controladoria FP&A;Como são tratados os rateios de despesas?;Não existem;Base fixa/manual;Drivers simples;Drivers dinâmicos e múltiplos estágios
+Geral;Comercial;Como é feita a projeção de vendas?;Meta Top-Down apenas;Baseada em histórico;Colaborativa (Bottom-up);Preditiva com drivers de mercado
+Geral;Comercial;Existe orçamento de volume x preço?;Não - apenas valor total;Em alguns produtos;Sim para principais linhas;Sim para todo o mix
+Geral;Comercial;O orçamento de deduções de vendas é detalhado?;Percentual fixo sobre Venda Bruta;Por canal/produto (médio);Cálculo imposto a imposto;Detalhado por cliente/SKU e tributo
+Geral;Comercial;Existe simulação de cenários de vendas?;Não;Apenas otimista/pessimista;Simulações manuais;Simulações dinâmicas (what-if)
+Geral;Comercial;A equipe comercial tem acesso fácil às suas metas e real?;Não;Recebem relatórios estáticos;Acesso limitado;Dashboard online em tempo real
+Geral;Operações;Como é o orçamento de produção/serviços?;Baseado em histórico financeiro;Baseado em volume de vendas;BOM (Ficha Técnica) explodida;BOM + Capacidade instalada (MRP)
+Geral;Operações;Os custos variáveis são calculados como?;Porcentagem da Receita;Custo médio histórico;Custo padrão;Custo padrão com revisão periódica
+Geral;Operações;Existe orçamento de investimentos (CAPEX)?;Não;Lista de desejos;Projetos aprovados;Gestão de portfólio de projetos com ROI
+Geral;Operações;Como é projetado o headcount operacional?;Manual/Global;Por setor;Baseado em drivers de volume;Otimizado por turno/capacidade
+Geral;Operações;Existe controle de estoques projetado?;Não;Giro médio global;Giro por categoria;Giro por SKU e política de cobertura
+Geral;Operações;A manutenção é orçada?;Não;Valor fixo mensal;Base zero;Preventiva/Corretiva baseada em ativos
+Geral;Pessoas (RH);Como é feito o orçamento de folha?;Linha única de custo;Por centro de custo;Por cargo/salário médio;Matricial (colaborador a colaborador)
+Geral;Pessoas (RH);Os encargos e benefícios são calculados como?;Flat (percentual sobre salário);Por sindicato;Regra detalhada por verba;Cálculo exato por benefício/perfil
+Geral;Pessoas (RH);Existe planejamento de contratações?;Não;Valor global;Vagas aprovadas;Cronograma físico-financeiro de vagas
+Geral;Pessoas (RH);Como são projetados os aumentos/dissídios?;Não são;Percentual global;Por sindicato/mês base;Por mérito individual + dissídio
+Geral;Pessoas (RH);O orçamento de treinamento é detalhado?;Não;Verba global;Por área;Por colaborador/curso
+Geral;Pessoas (RH);O RH participa ativamente da validação?;Não;Apenas recebe os números;Valida headcount;Valida toda a despesa de pessoal
+Geral;Resultados Conectados;Os sistemas (Vendas - RH - Produção) conversam com o Orçamento?;Não - tudo manual;Algumas importações;Integração via banco de dados;Integração nativa/API em tempo real
+Geral;Resultados Conectados;Quanto tempo leva para gerar um relatório de realizado x orçado?;Dias ou Semanas;1 a 2 dias;Algumas horas;Imediato (Real-time)
+Geral;Resultados Conectados;A empresa utiliza Dashboards de gestão?;Não - apenas planilhas;Sim - estáticos (PPT);Sim - BI (PowerBI/Tableau);Sim integrados à ferramenta de planejamento
+Geral;Resultados Conectados;É fácil fazer análises de root-cause (clicar e detalhar)?;Não é possível;Difícil (precisa abrir várias fontes);Razoável;Sim - Drill-down completo
+Geral;Resultados Conectados;A tomada de decisão é baseada em dados?;Não - feeling;Às vezes;Maioria das vezes;Sempre (Data Driven)
+Geral;Resultados Conectados;Qual a satisfação com a tecnologia atual?;Insatisfeito;Neutro;Satisfeito;Muito Satisfeito
