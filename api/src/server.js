@@ -311,7 +311,12 @@ apiRouter.post('/diagnoses', async (req, res) => {
 // Listar Histórico
 apiRouter.get('/history', async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM diagnoses ORDER BY created_at DESC');
+        const [rows] = await pool.query(`
+            SELECT d.*, COALESCE(isw.score_mode, 'percent') AS score_mode
+            FROM diagnoses d
+            LEFT JOIN industry_scoring_weights isw ON isw.industry_id = d.industry_id
+            ORDER BY d.created_at DESC
+        `);
 
         // Mapear para o formato que o frontend espera
         const mappedRows = rows.map(row => ({
