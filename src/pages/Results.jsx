@@ -9,7 +9,7 @@ import logo from '../assets/logo.png';
 
 const Results = () => {
     // Get questions from context to support dynamic updates/feedback
-    const { answers: contextAnswers, userInfo: contextUserInfo, resetDiagnosis, addToHistory, questions: contextQuestions } = useDiagnosis();
+    const { answers: contextAnswers, userInfo: contextUserInfo, resetDiagnosis, addToHistory, questions: contextQuestions, currentScoring, selectIndustryScope } = useDiagnosis();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -64,13 +64,33 @@ const Results = () => {
         }
     }, [answers, navigate, isHistoryView]);
 
+    // Update industry scope when viewing history to get correct scoring config
+    useEffect(() => {
+        if (isHistoryView && historyItem?.industry_id) {
+            selectIndustryScope(historyItem.industry_id);
+        }
+    }, [isHistoryView, historyItem?.industry_id, selectIndustryScope]);
+
     const getPoints = (idx) => {
-        if (idx === 0) return 0;
-        if (idx === 1) return 33;
-        if (idx === 2) return 66;
-        if (idx === 3) return 100;
-        return 0;
+        if (!currentScoring) {
+            if (idx === 0) return 0;
+            if (idx === 1) return 33;
+            if (idx === 2) return 66;
+            if (idx === 3) return 100;
+            return 0;
+        }
+
+        const weights = [
+            currentScoring.option_a_weight,
+            currentScoring.option_b_weight,
+            currentScoring.option_c_weight,
+            currentScoring.option_d_weight
+        ];
+        return weights[idx] ?? 0;
     };
+
+    const isPointsMode = currentScoring?.score_mode === 'points';
+    const scoreSuffix = isPointsMode ? ' pts' : '%';
 
     // Calculate scores
     const sectionScores = historyItem?.sectionScores || questionsSource.map(section => {
@@ -83,30 +103,35 @@ const Results = () => {
         }, 0);
 
         const percentage = Math.round((sectionPoints / sectionTotalMax) * 100);
+        const score = isPointsMode ? sectionPoints : percentage;
 
         return {
             id: section.id,
             title: section.title,
-            score: percentage,
+            score: score,
             subject: section.title,
-            A: percentage,
+            A: percentage, // Always use percentage (0-100) for charts
             fullMark: 100,
             feedback: section.feedback // Pass feedback to result object
         };
     });
 
-    const overallScore = historyItem?.score ?? Math.round(
-        sectionScores.reduce((acc, s) => acc + s.score, 0) / sectionScores.length
+    const overallScorePercentage = Math.round(
+        sectionScores.reduce((acc, s) => acc + s.A, 0) / sectionScores.length
     );
 
-    const getMaturityLevel = (score) => {
-        if (score < 40) return { label: 'Inicial', color: 'text-accent-danger' };
-        if (score < 70) return { label: 'Em Desenvolvimento', color: 'text-accent-warning' };
-        if (score < 90) return { label: 'Avançado', color: 'text-primary' };
+    const overallScore = isPointsMode
+        ? sectionScores.reduce((acc, s) => acc + s.score, 0)
+        : overallScorePercentage;
+
+    const getMaturityLevel = (scorePercent) => {
+        if (scorePercent < 40) return { label: 'Inicial', color: 'text-accent-danger' };
+        if (scorePercent < 70) return { label: 'Em Desenvolvimento', color: 'text-accent-warning' };
+        if (scorePercent < 90) return { label: 'Avançado', color: 'text-primary' };
         return { label: 'Best-in-Class', color: 'text-accent-success' };
     };
 
-    const maturity = getMaturityLevel(overallScore);
+    const maturity = getMaturityLevel(overallScorePercentage);
 
     // Save to history ONLY if it's a new diagnosis (not viewing history)
     useEffect(() => {
@@ -235,7 +260,7 @@ const Results = () => {
                         <h2 style="font-size: 18pt; color: #333; border-bottom: 1px solid #ccc; padding-bottom: 10px;">Resultado Geral</h2>
                         
                         <div style="margin: 20px 0;">
-                            <p style="font-size: 36pt; font-weight: bold; color: #2563eb; margin: 0;">${overallScore}%</p>
+                            <p style="font-size: 36pt; font-weight: bold; color: #2563eb; margin: 0;">${overallScore}${scoreSuffix}</p>
                             <p style="font-size: 14pt; margin: 5px 0;">Nível: <strong>${maturity.label}</strong></p>
                         </div>
 
@@ -260,7 +285,7 @@ const Results = () => {
                                 <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
                                     <h3 style="margin: 0 0 10px 0; font-size: 14pt; color: #000;">
                                         ${section.title}
-                                        <span style="float: right; color: ${section.score < 50 ? '#d97706' : '#16a34a'};">${section.score}%</span>
+                                        <span style="float: right; color: ${section.A < 50 ? '#d97706' : '#16a34a'};">${section.score}${scoreSuffix}</span>
                                     </h3>
                                     
                                     <p style="font-size: 11pt; line-height: 1.5; color: #444; margin: 0;">
@@ -443,13 +468,13 @@ const Results = () => {
                                 strokeWidth="12"
                                 fill="transparent"
                                 strokeDasharray={552}
-                                strokeDashoffset={552 - (552 * overallScore) / 100}
-                                className={`transition-all duration-1000 ease-out ${overallScore < 50 ? 'text-accent-warning' : 'text-primary'
+                                strokeDashoffset={552 - (552 * overallScorePercentage) / 100}
+                                className={`transition-all duration-1000 ease-out ${overallScorePercentage < 50 ? 'text-accent-warning' : 'text-primary'
                                     }`} // Simplified color logic
                             />
                         </svg>
                         <div className="absolute flex flex-col items-center">
-                            <span className="text-5xl font-bold">{overallScore}%</span>
+                            <span className="text-5xl font-bold">{overallScore}{scoreSuffix}</span>
                         </div>
                     </div>
                     <p className="text-xl">
@@ -470,16 +495,16 @@ const Results = () => {
                         <div key={section.id} className="bg-bg-secondary p-6 rounded-xl border border-border-color">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-semibold text-lg">{section.title}</h3>
-                                <span className={`font-bold ${section.score < 50 ? 'text-accent-warning' : 'text-accent-success'
+                                <span className={`font-bold ${section.A < 50 ? 'text-accent-warning' : 'text-accent-success'
                                     }`}>
-                                    {section.score}%
+                                    {section.score}{scoreSuffix}
                                 </span>
                             </div>
                             <div className="w-full h-2 bg-bg-tertiary rounded-full overflow-hidden mb-4">
                                 <div
-                                    className={`h-full ${section.score < 50 ? 'bg-accent-warning' : 'bg-accent-success'
+                                    className={`h-full ${section.A < 50 ? 'bg-accent-warning' : 'bg-accent-success'
                                         }`}
-                                    style={{ width: `${section.score}%` }}
+                                    style={{ width: `${section.A}%` }}
                                 />
                             </div>
                             <p className="text-sm text-text-secondary">

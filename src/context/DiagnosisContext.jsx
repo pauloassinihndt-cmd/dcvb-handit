@@ -68,36 +68,52 @@ export const DiagnosisProvider = ({ children }) => {
         fetchInitialData();
     }, []);
 
-    // 2. Carregar Perguntas quando a Indústria mudar
+    const [currentScoring, setCurrentScoring] = useState(null);
+
+    // 2. Carregar Perguntas e Configuração de Pontuação quando a Indústria mudar
     useEffect(() => {
-        const fetchQuestions = async () => {
+        const fetchData = async () => {
             if (!currentIndustryId) return;
 
             try {
-                const res = await fetch(`${API_URL}/questions/${currentIndustryId}`);
-                const data = await res.json();
-
-                // Garantir que data seja um array antes de setar
-                const questionsArray = Array.isArray(data) ? data : [];
+                // Buscar Perguntas
+                const questionsRes = await fetch(`${API_URL}/questions/${currentIndustryId}`);
+                const questionsData = await questionsRes.json();
+                const questionsArray = Array.isArray(questionsData) ? questionsData : [];
 
                 setAllQuestions(prev => ({
                     ...prev,
                     [currentIndustryId]: questionsArray
                 }));
+
+                // Buscar Configuração de Pontuação
+                const scoringRes = await fetch(`${API_URL}/industries/${currentIndustryId}/scoring`);
+                if (scoringRes.ok) {
+                    const scoringData = await scoringRes.json();
+                    setCurrentScoring(scoringData);
+                } else {
+                    setCurrentScoring({
+                        option_a_weight: 0,
+                        option_b_weight: 33,
+                        option_c_weight: 66,
+                        option_d_weight: 100,
+                        score_mode: 'percent'
+                    });
+                }
             } catch (error) {
-                console.error('Erro ao buscar perguntas:', error);
+                console.error('Erro ao buscar dados do ramo:', error);
             }
         };
 
-        fetchQuestions();
+        fetchData();
     }, [currentIndustryId]);
 
     // Questions derived from current selection
     const questions = allQuestions[currentIndustryId] || [];
 
-    const selectIndustryScope = (industryId) => {
+    const selectIndustryScope = useCallback((industryId) => {
         setCurrentIndustryId(industryId);
-    };
+    }, []);
 
     const addToHistory = async (result) => {
         try {
@@ -321,6 +337,7 @@ export const DiagnosisProvider = ({ children }) => {
             industries,
             selectIndustryScope,
             currentIndustryId,
+            currentScoring,
             loading,
             // Fallbacks para as telas de admin não quebrarem (podem ser implementadas depois no backend)
             updateQuestions,
