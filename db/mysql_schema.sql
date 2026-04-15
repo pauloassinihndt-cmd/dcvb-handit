@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS diagnoses (
     faturamento VARCHAR(100),
     faixa_colaboradores VARCHAR(100),
     erp VARCHAR(100),
-    total_score DECIMAL(5,2) DEFAULT 0,
+    total_score DECIMAL(10,2) DEFAULT 0,
     maturity_level VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_diag_industry FOREIGN KEY (industry_id) REFERENCES industries(id)
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS diagnosis_section_results (
     diagnosis_id VARCHAR(36) NOT NULL,
     section_id VARCHAR(36) NOT NULL,
     section_title VARCHAR(255) NOT NULL,
-    score DECIMAL(5,2) NOT NULL,
+    score DECIMAL(10,2) NOT NULL,
     feedback_text TEXT,
     CONSTRAINT fk_res_diagnosis FOREIGN KEY (diagnosis_id) REFERENCES diagnoses(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

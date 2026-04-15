@@ -43,6 +43,10 @@ async function runMigrations() {
             console.log('[MIGRATION] Coluna answer_text_snapshot criada.');
         }
 
+        await pool.execute(`ALTER TABLE diagnoses MODIFY COLUMN total_score DECIMAL(10,2) DEFAULT 0`);
+        await pool.execute(`ALTER TABLE diagnosis_section_results MODIFY COLUMN score DECIMAL(10,2) NOT NULL`);
+        console.log('[MIGRATION] Colunas de score ajustadas para DECIMAL(10,2).');
+
         console.log('[MIGRATION] Verificacao de colunas de snapshot concluida.');
     } catch (e) {
         console.warn('[MIGRATION] Erro na migration de snapshot:', e.message);
@@ -297,7 +301,7 @@ apiRouter.post('/diagnoses', async (req, res) => {
         }
 
         await connection.commit();
-        console.log(`[DIAGNOSTICO] Salvo com sucesso. ID: ${id} | Empresa: ${userInfo.empresa} | Score: ${total_score}%`);
+        console.log(`[DIAGNOSTICO] Salvo com sucesso. ID: ${id} | Empresa: ${userInfo.empresa} | Score: ${total_score}`);
         res.status(201).json({ message: 'Diagnóstico salvo com sucesso', id });
     } catch (error) {
         if (connection) await connection.rollback();
