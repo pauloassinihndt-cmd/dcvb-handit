@@ -202,42 +202,67 @@ const ETNReport = () => {
     const handleDownloadPDF = async () => {
         setIsGeneratingPdf(true);
         try {
-            const element = resultsRef.current;
             const pdf = new jsPDF('p', 'mm', 'a4');
+            const root = resultsRef.current;
             const pageMargin = 12;
-            const contentWidth = pdf.internal.pageSize.getWidth() - (pageMargin * 2);
+            const verticalGap = 4;
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const contentWidth = pageWidth - (pageMargin * 2);
+            let currentY = pageMargin;
 
-            await new Promise((resolve) => {
-                pdf.html(element, {
-                    x: pageMargin,
-                    y: pageMargin,
-                    width: contentWidth,
-                    margin: [pageMargin, pageMargin, pageMargin, pageMargin],
-                    autoPaging: 'text',
-                    windowWidth: element.scrollWidth,
-                    html2canvas: {
-                        scale: 0.75,
-                        useCORS: true,
-                        backgroundColor: '#ffffff',
-                        onclone: (document) => {
-                            const el = document.querySelector('.animate-fadeIn');
-                            if (el) {
-                                el.classList.remove('animate-fadeIn');
-                                el.style.opacity = '1';
-                                el.style.transform = 'none';
-                                el.style.animation = 'none';
-                            }
+            const captureOptions = {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                windowWidth: root.scrollWidth,
+                onclone: (document) => {
+                    const el = document.querySelector('.animate-fadeIn');
+                    if (el) {
+                        el.classList.remove('animate-fadeIn');
+                        el.style.opacity = '1';
+                        el.style.transform = 'none';
+                        el.style.animation = 'none';
+                    }
+                }
+            };
 
-                            const cloneRoot = document.querySelector('#report-pdf-root');
-                            if (cloneRoot) {
-                                cloneRoot.style.padding = '0';
-                                cloneRoot.style.gap = '24px';
-                            }
-                        }
-                    },
-                    callback: () => resolve()
-                });
-            });
+            const addPageIfNeeded = (heightMm, forceNewPage = false) => {
+                const usableHeight = pageHeight - pageMargin;
+                if (forceNewPage || (currentY + heightMm > usableHeight && currentY > pageMargin)) {
+                    pdf.addPage();
+                    currentY = pageMargin;
+                }
+            };
+
+            const renderElementToPdf = async (element, options = {}) => {
+                if (!element) return;
+
+                const canvas = await html2canvas(element, captureOptions);
+                const imgData = canvas.toDataURL('image/png');
+                const imgHeight = (canvas.height * contentWidth) / canvas.width;
+
+                addPageIfNeeded(imgHeight, options.forceNewPage);
+                pdf.addImage(imgData, 'PNG', pageMargin, currentY, contentWidth, imgHeight);
+                currentY += imgHeight + verticalGap;
+            };
+
+            await renderElementToPdf(document.querySelector('[data-pdf-block="header"]'));
+            await renderElementToPdf(document.querySelector('[data-pdf-block="summary"]'));
+            await renderElementToPdf(document.querySelector('[data-pdf-block="details-title"]'));
+
+            const detailCards = Array.from(document.querySelectorAll('[data-pdf-detail-card]'));
+            for (const card of detailCards) {
+                await renderElementToPdf(card);
+            }
+
+            await renderElementToPdf(document.querySelector('[data-pdf-block="questions-title"]'), { forceNewPage: currentY > pageHeight * 0.55 });
+            await renderElementToPdf(document.querySelector('[data-pdf-block="questions-header"]'));
+
+            const questionRowsElements = Array.from(document.querySelectorAll('[data-pdf-question-row]'));
+            for (const row of questionRowsElements) {
+                await renderElementToPdf(row);
+            }
 
             const dateStr = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
             pdf.save(`Relatorio-ETN-${userInfo.empresa || 'Empresa'}-${dateStr}.pdf`);
@@ -423,7 +448,7 @@ const ETNReport = () => {
 
     return (
         <div ref={resultsRef} id="report-pdf-root" className="flex flex-col gap-10 pb-20 animate-fadeIn bg-white p-8">
-            <div id="report-header" className="flex flex-col gap-6 border-b border-border-color pb-8" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+            <div id="report-header" data-pdf-block="header" className="flex flex-col gap-6 border-b border-border-color pb-8" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div className="flex items-center gap-4">
                         <img src={logo} alt="Handit Logo" className="h-12" />
@@ -502,7 +527,7 @@ const ETNReport = () => {
                 </div>
             </div>
 
-            <div id="report-summary" className="grid md:grid-cols-2 gap-8" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+            <div id="report-summary" data-pdf-block="summary" className="grid md:grid-cols-2 gap-8" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
                 <div id="chart-radar" className="bg-bg-secondary p-8 rounded-xl border border-border-color flex flex-col items-center justify-center text-center">
                     <h2 className="text-lg text-text-secondary mb-4">Score Geral</h2>
                     <div className="relative flex items-center justify-center w-48 h-48 mb-6">
@@ -535,10 +560,10 @@ const ETNReport = () => {
             </div>
 
             <div id="report-details" className="flex flex-col gap-6">
-                <h2 className="text-2xl font-bold">Detalhamento por Área</h2>
+                <h2 data-pdf-block="details-title" className="text-2xl font-bold">Detalhamento por Área</h2>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {sectionScores.map(section => (
-                        <div key={section.id} className="bg-bg-secondary p-6 rounded-xl border border-border-color" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+                        <div key={section.id} data-pdf-detail-card className="bg-bg-secondary p-6 rounded-xl border border-border-color" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-semibold text-lg">{section.title}</h3>
                                 <span className={`font-bold ${getSectionPercent(section) < 50 ? 'text-accent-warning' : 'text-accent-success'}`}>
@@ -558,9 +583,9 @@ const ETNReport = () => {
             </div>
 
             <div id="report-questions" className="flex flex-col gap-6 mt-6">
-                <h2 className="text-2xl font-bold border-t border-border-color pt-8">Resumo das Perguntas e Respostas</h2>
+                <h2 data-pdf-block="questions-title" className="text-2xl font-bold border-t border-border-color pt-8">Resumo das Perguntas e Respostas</h2>
                 <div className="bg-white rounded-xl border border-border-color overflow-hidden">
-                    <div className="bg-bg-secondary px-6 py-4 border-b border-border-color">
+                    <div data-pdf-block="questions-header" className="bg-bg-secondary px-6 py-4 border-b border-border-color">
                         <h3 className="font-bold text-lg">
                             {isHistoryView && historyItem?.answersSnapshot?.length > 0
                                 ? 'Respostas registradas no momento do diagnóstico'
@@ -569,7 +594,7 @@ const ETNReport = () => {
                     </div>
                     <div className="divide-y divide-border-color">
                         {questionRows.map((row) => (
-                            <div key={row.key} className="p-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+                            <div key={row.key} data-pdf-question-row className="p-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center" style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
                                 <div className="flex-1">
                                     {row.sectionTitle && (
                                         <p className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-2">{row.sectionTitle}</p>
