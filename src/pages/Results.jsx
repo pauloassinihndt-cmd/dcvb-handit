@@ -91,9 +91,14 @@ const Results = () => {
 
     const isPointsMode = currentScoring?.score_mode === 'points';
     const scoreSuffix = isPointsMode ? ' pts' : '%';
+    const shouldRecalculateScores = !historyItem?.sectionScores || (
+        isPointsMode &&
+        questionsSource.length > 0 &&
+        Object.keys(answers).length > 0
+    );
 
     // Calculate scores
-    const sectionScores = historyItem?.sectionScores || questionsSource.map(section => {
+    const sectionScores = shouldRecalculateScores ? questionsSource.map(section => {
         const questions = section.questions;
         const sectionTotalMax = questions.length * 100;
 
@@ -114,15 +119,19 @@ const Results = () => {
             fullMark: 100,
             feedback: section.feedback // Pass feedback to result object
         };
-    });
+    }) : historyItem.sectionScores;
+
+    const getSectionPercent = (section) => section?.A ?? section?.score ?? 0;
 
     const overallScorePercentage = Math.round(
-        sectionScores.reduce((acc, s) => acc + s.A, 0) / sectionScores.length
+        sectionScores.reduce((acc, s) => acc + getSectionPercent(s), 0) / sectionScores.length
     );
 
-    const overallScore = isPointsMode
-        ? sectionScores.reduce((acc, s) => acc + s.score, 0)
-        : overallScorePercentage;
+    const overallScore = shouldRecalculateScores
+        ? (isPointsMode
+            ? sectionScores.reduce((acc, s) => acc + s.score, 0)
+            : overallScorePercentage)
+        : (historyItem?.score ?? overallScorePercentage);
 
     const getMaturityLevel = (scorePercent) => {
         if (scorePercent < 40) return { label: 'Inicial', color: 'text-accent-danger' };
@@ -133,19 +142,23 @@ const Results = () => {
 
     const maturity = getMaturityLevel(overallScorePercentage);
 
+    const getSectionFeedback = (section) => {
+        if (section?.feedback_calculated) return section.feedback_calculated;
+
+        const levels = section.feedback?.levels || {};
+        const sectionPercent = getSectionPercent(section);
+        if (sectionPercent <= 25) return levels.initial || 'Nível Inicial: Processos ainda não estruturados.';
+        if (sectionPercent <= 50) return levels.basic || 'Nível Básico: Existem controles, mas manuais e pouco integrados.';
+        if (sectionPercent <= 75) return levels.intermediate || 'Nível Intermediário: Processos definidos e parcialmente automatizados.';
+        return levels.advanced || 'Nível Avançado: Gestão otimizada com alta automação e uso de dados.';
+    };
+
     // Save to history ONLY if it's a new diagnosis (not viewing history)
     useEffect(() => {
         if (!isHistoryView && Object.keys(answers).length > 0) {
             // Calculate feedback text for each section before saving
             const sectionScoresWithFeedback = sectionScores.map(section => {
-                const levels = section.feedback?.levels || {};
-                let feedback_calculated = '';
-                if (section.score <= 25) feedback_calculated = levels.initial || 'Nível Inicial: Processos ainda não estruturados.';
-                else if (section.score <= 50) feedback_calculated = levels.basic || 'Nível Básico: Existem controles, mas manuais e pouco integrados.';
-                else if (section.score <= 75) feedback_calculated = levels.intermediate || 'Nível Intermediário: Processos definidos e parcialmente automatizados.';
-                else feedback_calculated = levels.advanced || 'Nível Avançado: Gestão otimizada com alta automação e uso de dados.';
-
-                return { ...section, feedback_calculated };
+                return { ...section, feedback_calculated: getSectionFeedback(section) };
             });
 
             addToHistory({
@@ -285,18 +298,12 @@ const Results = () => {
                                 <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
                                     <h3 style="margin: 0 0 10px 0; font-size: 14pt; color: #000;">
                                         ${section.title}
-                                        <span style="float: right; color: ${section.A < 50 ? '#d97706' : '#16a34a'};">${section.score}${scoreSuffix}</span>
+                                        <span style="float: right; color: ${getSectionPercent(section) < 50 ? '#d97706' : '#16a34a'};">${section.score}${scoreSuffix}</span>
                                     </h3>
                                     
                                     <p style="font-size: 11pt; line-height: 1.5; color: #444; margin: 0;">
                                         <strong>Feedback:</strong><br/>
-                                        ${(() => {
-                    const levels = section.feedback?.levels || {};
-                    if (section.score <= 25) return levels.initial || 'Nível Inicial: Processos ainda não estruturados.';
-                    if (section.score <= 50) return levels.basic || 'Nível Básico: Existem controles, mas manuais e pouco integrados.';
-                    if (section.score <= 75) return levels.intermediate || 'Nível Intermediário: Processos definidos e parcialmente automatizados.';
-                    return levels.advanced || 'Nível Avançado: Gestão otimizada com alta automação e uso de dados.';
-                })()}
+                                        ${getSectionFeedback(section)}
                                     </p>
                                 </div>
                             </div>
@@ -495,26 +502,20 @@ const Results = () => {
                         <div key={section.id} className="bg-bg-secondary p-6 rounded-xl border border-border-color">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-semibold text-lg">{section.title}</h3>
-                                <span className={`font-bold ${section.A < 50 ? 'text-accent-warning' : 'text-accent-success'
+                                <span className={`font-bold ${getSectionPercent(section) < 50 ? 'text-accent-warning' : 'text-accent-success'
                                     }`}>
                                     {section.score}{scoreSuffix}
                                 </span>
                             </div>
                             <div className="w-full h-2 bg-bg-tertiary rounded-full overflow-hidden mb-4">
                                 <div
-                                    className={`h-full ${section.A < 50 ? 'bg-accent-warning' : 'bg-accent-success'
+                                    className={`h-full ${getSectionPercent(section) < 50 ? 'bg-accent-warning' : 'bg-accent-success'
                                         }`}
-                                    style={{ width: `${section.A}%` }}
+                                    style={{ width: `${getSectionPercent(section)}%` }}
                                 />
                             </div>
                             <p className="text-sm text-text-secondary">
-                                {(() => {
-                                    const levels = section.feedback?.levels || {};
-                                    if (section.score <= 25) return levels.initial || 'Nível Inicial: Processos ainda não estruturados.';
-                                    if (section.score <= 50) return levels.basic || 'Nível Básico: Existem controles, mas manuais e pouco integrados.';
-                                    if (section.score <= 75) return levels.intermediate || 'Nível Intermediário: Processos definidos e parcialmente automatizados.';
-                                    return levels.advanced || 'Nível Avançado: Gestão otimizada com alta automação e uso de dados.';
-                                })()}
+                                {getSectionFeedback(section)}
                             </p>
                         </div>
                     ))}
