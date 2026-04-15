@@ -316,9 +316,21 @@ apiRouter.post('/diagnoses', async (req, res) => {
 apiRouter.get('/history', async (req, res) => {
     try {
         const [rows] = await pool.query(`
-            SELECT d.*, COALESCE(isw.score_mode, 'percent') AS score_mode
+            SELECT
+                d.*,
+                COALESCE(isw.score_mode, 'percent') AS score_mode,
+                CASE
+                    WHEN COALESCE(isw.score_mode, 'percent') = 'points'
+                        THEN COALESCE(dsr.total_section_score, d.total_score)
+                    ELSE d.total_score
+                END AS display_score
             FROM diagnoses d
             LEFT JOIN industry_scoring_weights isw ON isw.industry_id = d.industry_id
+            LEFT JOIN (
+                SELECT diagnosis_id, SUM(score) AS total_section_score
+                FROM diagnosis_section_results
+                GROUP BY diagnosis_id
+            ) dsr ON dsr.diagnosis_id = d.id
             ORDER BY d.created_at DESC
         `);
 
@@ -328,7 +340,7 @@ apiRouter.get('/history', async (req, res) => {
             id: row.id,
             company: row.user_company,
             name: row.user_name,
-            score: row.total_score,
+            score: Number(row.display_score ?? row.total_score ?? 0),
             date: row.created_at,
             userInfo: {
                 nome: row.user_name,
