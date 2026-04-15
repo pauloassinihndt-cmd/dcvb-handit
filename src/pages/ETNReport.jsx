@@ -251,6 +251,13 @@ const ETNReport = () => {
                         feedback.style.lineHeight = '1.35';
                         feedback.style.margin = '0';
                     });
+
+                    document.querySelectorAll('[data-pdf-block="details-title"], [data-pdf-block="questions-title"]').forEach((title) => {
+                        title.style.paddingTop = '8px';
+                        title.style.paddingBottom = '6px';
+                        title.style.lineHeight = '1.25';
+                        title.style.margin = '0';
+                    });
                 }
             };
 
