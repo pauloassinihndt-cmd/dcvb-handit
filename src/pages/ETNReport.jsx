@@ -224,6 +224,32 @@ const ETNReport = () => {
                         el.style.transform = 'none';
                         el.style.animation = 'none';
                     }
+
+                    document.querySelectorAll('[data-pdf-detail-card]').forEach((card) => {
+                        card.style.padding = '14px';
+                        card.style.borderRadius = '12px';
+                    });
+
+                    document.querySelectorAll('[data-pdf-detail-card] h3').forEach((title) => {
+                        title.style.fontSize = '16px';
+                        title.style.lineHeight = '1.2';
+                        title.style.margin = '0';
+                    });
+
+                    document.querySelectorAll('[data-pdf-detail-card] span').forEach((score) => {
+                        score.style.fontSize = '14px';
+                    });
+
+                    document.querySelectorAll('[data-pdf-detail-card] .pdf-detail-bar').forEach((bar) => {
+                        bar.style.height = '6px';
+                        bar.style.marginBottom = '10px';
+                    });
+
+                    document.querySelectorAll('[data-pdf-detail-card] .pdf-detail-feedback').forEach((feedback) => {
+                        feedback.style.fontSize = '12px';
+                        feedback.style.lineHeight = '1.35';
+                        feedback.style.margin = '0';
+                    });
                 }
             };
 
@@ -570,13 +596,13 @@ const ETNReport = () => {
                                     {section.score}{scoreSuffix}
                                 </span>
                             </div>
-                            <div className="w-full h-2 bg-bg-tertiary rounded-full overflow-hidden mb-4">
+                            <div className="pdf-detail-bar w-full h-2 bg-bg-tertiary rounded-full overflow-hidden mb-4">
                                 <div
                                     className={`h-full ${getSectionPercent(section) < 50 ? 'bg-accent-warning' : 'bg-accent-success'}`}
                                     style={{ width: `${getSectionPercent(section)}%` }}
                                 />
                             </div>
-                            <p className="text-sm text-text-secondary">{getSectionFeedback(section)}</p>
+                            <p className="pdf-detail-feedback text-sm text-text-secondary">{getSectionFeedback(section)}</p>
                         </div>
                     ))}
                 </div>
