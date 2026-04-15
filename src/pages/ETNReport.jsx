@@ -206,6 +206,7 @@ const ETNReport = () => {
             const root = resultsRef.current;
             const pageMargin = 12;
             const verticalGap = 4;
+            const horizontalGap = 4;
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
             const contentWidth = pageWidth - (pageMargin * 2);
@@ -266,11 +267,12 @@ const ETNReport = () => {
 
                 const canvas = await html2canvas(element, captureOptions);
                 const imgData = canvas.toDataURL('image/png');
-                const imgHeight = (canvas.height * contentWidth) / canvas.width;
+                const renderWidth = options.width || contentWidth;
+                const renderHeight = (canvas.height * renderWidth) / canvas.width;
 
-                addPageIfNeeded(imgHeight, options.forceNewPage);
-                pdf.addImage(imgData, 'PNG', pageMargin, currentY, contentWidth, imgHeight);
-                currentY += imgHeight + verticalGap;
+                addPageIfNeeded(renderHeight, options.forceNewPage);
+                pdf.addImage(imgData, 'PNG', options.x || pageMargin, currentY, renderWidth, renderHeight);
+                currentY += renderHeight + verticalGap;
             };
 
             await renderElementToPdf(document.querySelector('[data-pdf-block="header"]'));
@@ -278,8 +280,31 @@ const ETNReport = () => {
             await renderElementToPdf(document.querySelector('[data-pdf-block="details-title"]'));
 
             const detailCards = Array.from(document.querySelectorAll('[data-pdf-detail-card]'));
-            for (const card of detailCards) {
-                await renderElementToPdf(card);
+            const detailCardWidth = (contentWidth - horizontalGap) / 2;
+            for (let index = 0; index < detailCards.length; index += 2) {
+                const rowCards = detailCards.slice(index, index + 2);
+                const renderedRow = [];
+
+                for (let colIndex = 0; colIndex < rowCards.length; colIndex += 1) {
+                    const card = rowCards[colIndex];
+                    const canvas = await html2canvas(card, captureOptions);
+                    const imgData = canvas.toDataURL('image/png');
+                    const renderHeight = (canvas.height * detailCardWidth) / canvas.width;
+                    renderedRow.push({
+                        imgData,
+                        renderHeight,
+                        x: pageMargin + (colIndex * (detailCardWidth + horizontalGap))
+                    });
+                }
+
+                const rowHeight = Math.max(...renderedRow.map(item => item.renderHeight));
+                addPageIfNeeded(rowHeight);
+
+                renderedRow.forEach((item) => {
+                    pdf.addImage(item.imgData, 'PNG', item.x, currentY, detailCardWidth, item.renderHeight);
+                });
+
+                currentY += rowHeight + verticalGap;
             }
 
             await renderElementToPdf(document.querySelector('[data-pdf-block="questions-title"]'), { forceNewPage: currentY > pageHeight * 0.55 });
